@@ -1,28 +1,63 @@
 ---
 title: "ECNS 560 Project Writeup"
 output: html_document
-date: "2026-04-08"
+date: "2026-04-09"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(yarrr)
 ```
 
 ## Topic and Motivation
-For this project, we aim to predict recessions, with more accuracy than existing indicators.  In particular, existing recession indicators tend to be far overfit, and create an indicator as a function of one or two macroeconomic variables which historically change in advance of recessions.  These tend to have many false positives -- hence the saying "economists have predicted 11 of the past 5 recessions."  We believe we can create an indicator which uses many more variables, and identify a region of space which contains recessions -- when our vector of these variables enters this region, the recession indicator will flag.  Importantly, this will rely on all of the variables we use, rather than some small subset.  
+
+For this project, we aim to predict recessions, with more accuracy than existing indicators. In particular, existing recession indicators tend to be far overfit, and create an indicator as a function of one or two macroeconomic variables which historically change in advance of recessions. These tend to have many false positives -- hence the saying "economists have predicted 11 of the past 5 recessions." We believe we can create an indicator which uses many more variables, and identify a region of space which contains recessions -- when our vector of these variables enters this region, the recession indicator will flag. Importantly, this will rely on all of the variables we use, rather than some small subset.
 
 ## Data and Processing
-Our data is retrieved from Yahoo Finance (via the "tidyquant" R package) and from FRED (also via the "tidyquant" R package).  This data includes time series for the daily close of major stock indices (S&P 500, DOW, NASDAQ, Russel 2000), common hedges for uncertainty (gold, silver, Case-Schiller Index for real estate), and monthly data on macroeconomic data (U3 and U6 unemployment, GDP, CPI, Federal Funds Rate, Housing Starts, ...).  Collectively, these present a multi-faceted image of the economy at a point in time -- in particular, they represent both classical macroeconomic indicators and aggregating signals for the "shadow economy" of asset prices and volatility hedges.  Further, the vast majority of our data begins well before 2000, with some stretching back to the beginning of the 20th century.  
 
-Our primary data of interest is the macroeconomic data -- we are interested in predicting and better understanding recessions, so GDP is one of our most relevant points.  GDP is released quarterly, so this would require collapsing much of our data and we would have limited power.  Instead, we will primarily use **Industrial Output -- make sure this is correct**, which is released monthly, at the same frequency as most of our other macroeconomic data.  To match this, we collapse our more granular data (like asset prices) to monthly, creating a monthly mean close price and an interday volatility measure from the variance of these daily closing prices within the month.  This collapsed data is combined with the other data, merging on the primary key of year-month, at which point a single primary key for our cleaned dataset is created.
+Our data is retrieved from Yahoo Finance (via the "tidyquant" R package) and from FRED (also via the "tidyquant" R package). This data includes time series for the daily close of major stock indices (S&P 500, DOW, NASDAQ, Russel 2000), common hedges for uncertainty (gold, silver, Case-Schiller Index for real estate), and monthly data on macroeconomic data (U3 and U6 unemployment, GDP, CPI, Federal Funds Rate, Housing Starts, ...). Collectively, these present a multi-faceted image of the economy at a point in time -- in particular, they represent both classical macroeconomic indicators and aggregating signals for the "shadow economy" of asset prices and volatility hedges. Further, the vast majority of our data begins well before 2000, with some stretching back to the beginning of the 20th century.
 
-From this, we do some further processing, to create a relative-scaled first-difference dataset -- that is, we create a mirror dataset that has percent change at each point, rather than continue analysis in levels.  Both will be useful, but the first difference and relative scaling normalizes and whitens the data, reducing issues of autocorrelation and scale differences between variables.  
+Our primary data of interest is the macroeconomic data -- we are interested in predicting and better understanding recessions, so GDP is one of our most relevant points. GDP is released quarterly, so this would require collapsing much of our data and we would have limited power. Instead, we will primarily use monthly industrial output, which is released monthly, at the same frequency as most of our other macroeconomic data. To match this, we collapse our more granular data (like asset prices) to monthly, creating a monthly mean close price and an interday volatility measure from the variance of these daily closing prices within the month. This collapsed data is combined with the other data, merging on the primary key of year-month, at which point a single primary key for our cleaned dataset is created.
+
+From this, we do some further processing, to create a relative-scaled first-difference dataset. Importantly, this relative-scaled first-difference is computed as a direct first-difference for those values which are already in percentage terms (interest rates or unemployment), and similarly, we also use this direct first-differencing for mean-reverting series, to avoid seeing explosive growth around zero or negligible percent changes for large level-valued changes as it reaches peaks or troughs.  Both the transformed and the untransformed data will be useful, but the first difference and relative scaling normalizes and whitens the data, reducing issues of autocorrelation and scale differences between variables.
+
+Finally, we append some functions of our variables onto that dataset to allow for a more robust approach when using persistent homology. In particular, we use log-returns for our asset data and other compounding indices, which tend to exhibit exponential growth and would thus distort the spacial "shape" of the data we intend to exploit in such a manner as to dominate any further processes, despite its failure as a dominant indicator of recessions.
 
 ## Visualizations
-This plot illustrates what periods we do have data, and where it is missing.  As we see here, most of the data is present and once the data series starts, it is almost perfectly complete.
+
+This plot illustrates what periods we do have data, and where it is missing. As we see here, most of the data is present and once the data series starts, it is almost perfectly complete.
 
 ```{r}
-# Barchart through time of when we have data
+load("../data/clean/transformed_cleaned_data.RData")
+##am just using df for dataframe right now, I don't know exactly what the name is
+
+# 1. Manually list the columns you want to include
+vars_to_plot <- c("x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8")
+
+# 2. Reshape and filter
+# Replace 'date_col' with the actual name of your date column
+df_long <- df %>%
+  pivot_longer(
+    cols = all_of(vars_to_plot), 
+    names_to = "variable", 
+    values_to = "value"
+  ) %>%
+  # Remove NAs and blanks so the bars stop/start and the axis fits correctly
+  filter(!is.na(value) & value != "")
+
+# 3. Create the plot
+ggplot(df_long, aes(x = date, y = variable)) +
+  # Using geom_tile creates the horizontal bars
+  # width = 31 ensures the monthly tiles touch to form a solid line
+  geom_tile(width = 31, height = 0.7, fill = "steelblue") +
+  # expand = c(0,0) forces the axis to start/end exactly at your data points
+  scale_x_date(expand = c(0, 0), date_labels = "%b %Y") +
+  labs(x = "Time", y = "Variable", title = "Data Availability") +
+  theme_minimal()
+
 ```
 
 This panel shows the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data.
@@ -31,22 +66,149 @@ This panel shows the path through time the US economy has followed, where color 
 # Panel of "dynamical systems butterfly"-type paths in 3D space
 # ideally with a color coded line to indicate what path the economy
 # takes through time
+
+# 1. Helper function to create an individual 3D plot
+# This maps your date to the color scale of the line
+create_3d_plot <- function(data, x_var, y_var, z_var, title_text) {
+  plot_ly(data, 
+          x = ~get(x_var), 
+          y = ~get(y_var), 
+          z = ~get(z_var), 
+          type = 'scatter3d', 
+          mode = 'lines',
+          # Mapping color to the date column for the time-progression effect
+          line = list(color = ~as.numeric(date), colorscale = 'Viridis', width = 4)) %>%
+    layout(title = title_text,
+           scene = list(xaxis = list(title = x_var),
+                        yaxis = list(title = y_var),
+                        zaxis = list(title = z_var)))
+}
+
+# 2. Manually define the column groups for each of the 4 panels
+# Panel 1: x1, x2, x3 | Panel 2: x4, x5, x6 | Panel 3: x7, x8, x9 | Panel 4: x10, x11, x12
+p1 <- create_3d_plot(df, "x1", "x2", "x3", "System A")
+p2 <- create_3d_plot(df, "x4", "x5", "x6", "System B")
+p3 <- create_3d_plot(df, "x7", "x8", "x9", "System C")
+p4 <- create_3d_plot(df, "x10", "x11", "x12", "System D")
+
+# 3. Combine into a 2x2 grid
+# nrows = 2 creates the 2x2 panel layout
+panel_plot <- subplot(p1, p2, p3, p4, nrows = 2, margin = 0.05) %>%
+  layout(title = "3D Dynamical Systems Analysis")
+
+# View the result
+panel_plot
 ```
 
-Here, we can see 
+Here, we can see
 
 ```{r}
 # "Stacked" time series of returns/percent-changes through time
 # For a few financial assets, Industrial Production or whatever that is,
 # probably also gold and the Case-Schiller index
+
+# 1. Manually select your 10 variables
+selected_vars <- c("x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10")
+
+# 2. Reshape to long format
+df_long <- df %>%
+  select(date, all_of(selected_vars)) %>%
+  pivot_longer(
+    cols = -date, 
+    names_to = "variable", 
+    values_to = "value"
+  ) %>%
+  # Ensure the order of the panels matches your list above
+  mutate(variable = factor(variable, levels = selected_vars))
+
+# 3. Create the stacked panel plot
+ggplot(df_long, aes(x = date, y = value)) +
+  geom_line(color = "steelblue") +
+  # scales = "free_y" gives each variable its own y-axis range
+  # ncol = 1 forces them into a vertical stack
+  facet_wrap(~variable, ncol = 1, scales = "free_y", strip.position = "left") +
+  scale_x_date(expand = c(0, 0)) +
+  labs(x = "Time", y = NULL) +
+  theme_minimal() +
+  theme(
+    strip.background = element_blank(),
+    strip.placement = "outside",
+    panel.spacing = unit(0.5, "lines") # Adjusts space between the panels
+  )
 ```
 
 ```{r}
-# Something to illustrate the clustering -- bar code and/or 
-# chart of "count of clusters" on Y axis and radius on X axis
+# 1. Get the names of the variables you want to plot
+# Excluding 'date' and any other non-numeric columns
+plot_vars <- colnames(df_diff)[sapply(df_diff, is.numeric)]
+
+# 2. Set up the 3x8 grid layout
+# Adjust margins so the labels don't overlap (bottom, left, top, right)
+par(mfrow = c(3, 8), mar = c(4, 4, 3, 1))
+
+# 3. Loop through and create a pirate plot for each variable
+for (v in plot_vars) {
+  yarrr::pirateplot(
+    formula = as.formula(paste(v, "~ 1")), # "~ 1" since we aren't grouping
+    data = df_diff,
+    main = v,               # Title of each sub-plot
+    theme = 1,              # Classic pirate plot theme
+    pal = "basel",          # Clean color palette
+    bean.f.col = "steelblue", 
+    point.pch = 16, 
+    point.col = "black", 
+    point.o = 0.1,          # Transparency to handle overplotting
+    avg.line.o = 0.8, 
+    inf.method = "hdi",     # High-density interval for the "bars"
+    ylab = "Value", 
+    xlab = ""
+  )
+}
+
+# Reset the plotting layout to single view when done
+par(mfrow = c(1, 1))
 ```
 
 ```{r}
-# Can we do an interactive plot here?  3D scatterplot of points through time
-# or the dynamical systems paths, with available rotation and choice of axis.
+# correlation plot
+
+plot_map_correlation <- function(data, title_text) {
+  # 1. Calculate correlation and mask the upper triangle
+  corr_matrix <- data %>%
+    select(where(is.numeric)) %>%
+    cor(use = "pairwise.complete.obs")
+  
+  # Set the upper triangle to NA
+  corr_matrix[upper.tri(corr_matrix)] <- NA
+  
+  # 2. Reshape and remove the NAs
+  df_corr <- as.data.frame(as.table(corr_matrix)) %>%
+    filter(!is.na(Freq)) %>%
+    rename(Var1 = Var1, Var2 = Var2, Correlation = Freq)
+  
+  # 3. Plotting
+  ggplot(df_corr, aes(x = Var1, y = Var2, fill = Correlation)) +
+    geom_tile(color = "white") +
+    scale_fill_gradient2(
+      low = "#b2182b", high = "#2166ac", mid = "#f7f7f7", 
+      midpoint = 0, limit = c(-1, 1), 
+      name = "Correlation"
+    ) +
+    # This keeps the "triangle" shape
+    coord_fixed() + 
+    theme_minimal() +
+    theme(
+      # Rotate labels to be "perpendicular" to the hypotenuse (diagonal)
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 9),
+      axis.text.y = element_text(angle = 45, vjust = 1, hjust = 1, size = 9),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.title = element_blank()
+    ) +
+    labs(title = title_text)
+}
+
+# Usage for your two dataframes:
+# plot_map_correlation(df, "Macroeconomic Variable Correlations (Levels)")
+# plot_map_correlation(df_diff, "Macroeconomic Variable Correlations (First-Difference)")
 ```
