@@ -5,11 +5,19 @@ date: "2026-04-09"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(
+  echo = FALSE,      # Hide code
+  error = FALSE,     # Hide error messages
+  warning = FALSE,   # Hide warnings (like "NAs introduced")
+  message = FALSE,   # Hide package loading messages
+  fig.align = "center" # Centers all your plots automatically
+)
+
 library(tidyverse)
 library(ggplot2)
 library(plotly)
 library(yarrr)
+library(lubridate)
 load("./data/clean/transformed_cleaned_data.RData")
 ```
 
@@ -58,86 +66,85 @@ ggplot(df_long, aes(x = as.Date(date), y = variable)) +
 
 ```
 
-This panel shows the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data.
+These plots show the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data.  In particular, we can see that there are some patterns and regions that this path seems to end up in -- our goal is to identify some repeating area where recessions occur, and use that pattern or spacial region to predict future recessions.
 
 ```{r}
-# --- REPLACEMENT CODE CHUNK FOR 3D DYNAMICAL SYSTEMS WITH TIME KEY ---
-
-# 1. Updated Helper Function 
-create_3d_plot <- function(data, x_var, y_var, z_var, title_text, scene_id = "scene", show_colorbar = FALSE) {
+create_3d_plot <- function(data, x_var, y_var, z_var, title_text) {
   
+  # 1. Prep data: drop specific NAs and ensure Date class
   plot_data <- data %>%
-    drop_na(all_of(c(x_var, y_var, z_var, "date")))
+    drop_na(all_of(c(x_var, y_var, z_var, "date"))) %>%
+    mutate(date = as.Date(date))
   
-  # Ensure date is numeric for the gradient
-  plot_data$date_num <- as.numeric(as.Date(plot_data$date))
+  # 2. Create numeric scale for the color gradient
+  plot_data$date_num <- as.numeric(plot_data$date)
   
-  # Determine the year range for the colorbar labels
-  date_range <- range(as.Date(plot_data$date), na.rm = TRUE)
+  # 3. Build the Time Scale Key (ticks every 5 years)
+  date_range <- range(plot_data$date, na.rm = TRUE)
   year_sequence <- seq(year(date_range[1]), year(date_range[2]), by = 5)
   year_numeric <- as.numeric(as.Date(paste0(year_sequence, "-01-01")))
 
+  # 4. Generate Plot
   plot_ly(plot_data, 
-          x = ~get(x_var), y = ~get(y_var), z = ~get(z_var), 
-          type = 'scatter3d', mode = 'lines',
+          x = ~get(x_var), 
+          y = ~get(y_var), 
+          z = ~get(z_var), 
+          type = 'scatter3d', 
+          mode = 'lines',
           line = list(
             color = ~date_num, 
             colorscale = 'Viridis', 
-            width = 4,
-            # Only show the colorbar for one plot to avoid duplicates
-            colorbar = if(show_colorbar) list(
-              title = "Time",
+            width = 5,
+            colorbar = list(
+              title = "Year",
               tickvals = year_numeric,
-              ticktext = year_sequence,
-              x = 1.1, # Positions it to the right of the entire panel
-              len = 0.8
-            ) else NULL,
-            showscale = show_colorbar
-          ),
-          scene = scene_id) %>%
-    layout(title = title_text)
+              ticktext = year_sequence
+            )
+          )) %>%
+    layout(
+      title = title_text,
+      scene = list(
+        xaxis = list(title = x_var),
+        yaxis = list(title = y_var),
+        zaxis = list(title = z_var)
+      ),
+      margin = list(l = 0, r = 0, b = 0, t = 40) # Maximize plot area
+    )
 }
 
-# 2. Assign unique scenes - we only enable 'show_colorbar' on p2 (top right)
+# --- GENERATE INDIVIDUAL PLOTS ---
+
 p1 <- create_3d_plot(altered_data, "dow_avg_close", "dow_volatility", "fedfunds", 
-                     "Federal Funds and Dow", "scene")
-p2 <- create_3d_plot(altered_data, "fedfunds", "case_shiller", "cpi", 
-                     "Housing, Interest, and Inflation", "scene2", show_colorbar = TRUE)
+                     "Federal Funds and Dow")
+
+p2 <- create_3d_plot(altered_data, "fedfunds", "case_shiller_logret_scaled", "cpi_logret_scaled", 
+                     "Housing, Interest, and Inflation")
+
 p3 <- create_3d_plot(altered_data, "industrial_production_logret", "u6_unemployment", "tbill_10yr", 
-                     "Labor and Yield Curve", "scene3")
+                     "Labor and Yield Curve")
+
 p4 <- create_3d_plot(altered_data, "gold_price_logret_scaled", "tbill_1yr", "tbill_10yr", 
-                     "Gold and Bonds", "scene4")
+                     "Gold and Bonds")
 
-# 3. Combine into a 2x2 grid
-panel_plot <- subplot(p1, p2, p3, p4, nrows = 2, margin = 0.05) %>%
-  layout(title = "3D Dynamical Systems Analysis",
-         scene = list(domain = list(x = c(0, 0.45), y = c(0.55, 1)),
-                      xaxis = list(title = "Dow"), yaxis = list(title = "Vol"), zaxis = list(title = "FedFunds")),
-         scene2 = list(domain = list(x = c(0.55, 1), y = c(0.55, 1)),
-                       xaxis = list(title = "FedFunds"), yaxis = list(title = "Housing"), zaxis = list(title = "CPI")),
-         scene3 = list(domain = list(x = c(0, 0.45), y = c(0, 0.45)),
-                       xaxis = list(title = "IndProd"), yaxis = list(title = "U6"), zaxis = list(title = "10yr")),
-         scene4 = list(domain = list(x = c(0.55, 1), y = c(0, 0.45)),
-                       xaxis = list(title = "Gold"), yaxis = list(title = "1yr"), zaxis = list(title = "10yr")))
-
-# View the result
-panel_plot
+p1
+p2
+p3
+p4
 ```
 
 
 
-Here, we can see
+Here, we can see how several variable change through time, as well as visualizing when the series starts.
 
 ```{r}
 # "Stacked" time series of returns/percent-changes through time
 # For a few financial assets, Industrial Production or whatever that is,
 # probably also gold and the Case-Schiller index
 
-# 1. Manually select your 10 variables
-selected_vars <- c("x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10")
+selected_vars <- c("dow_avg_close_logret_scaled", "snp500_avg_close_logret_scaled", "tbill_1yr_diff_scaled", "tbill_10yr_diff_scaled", "housing_starts_diff_scaled", "u6_unemployment_diff_scaled", "gold_price_logret_scaled", "case_shiller_logret_scaled", "industrial_production_logret_scaled", "rgdp_logret_scaled")
 
-# 2. Reshape to long format
-df_long <- df %>%
+# Reshape to long format
+df_long <- altered_data %>%
   select(date, all_of(selected_vars)) %>%
   pivot_longer(
     cols = -date, 
@@ -147,94 +154,59 @@ df_long <- df %>%
   # Ensure the order of the panels matches your list above
   mutate(variable = factor(variable, levels = selected_vars))
 
-# 3. Create the stacked panel plot
-ggplot(df_long, aes(x = date, y = value)) +
-  geom_line(color = "steelblue") +
-  # scales = "free_y" gives each variable its own y-axis range
-  # ncol = 1 forces them into a vertical stack
+# Create the stacked panel plot
+ggplot(df_long, aes(x = as.Date(date), y = value)) +
+  geom_line() +
   facet_wrap(~variable, ncol = 1, scales = "free_y", strip.position = "left") +
   scale_x_date(expand = c(0, 0)) +
   labs(x = "Time", y = NULL) +
-  theme_minimal() +
+  theme_minimal() + # Using minimal to clean up grid lines
   theme(
+    # Makes y-labels (variable names) read horizontally
+    strip.text.y.left = element_text(angle = 0, hjust = 1, size = 8), 
     strip.background = element_blank(),
     strip.placement = "outside",
-    panel.spacing = unit(0.5, "lines") # Adjusts space between the panels
+    # panel.spacing controls the gap between charts
+    panel.spacing = unit(0.8, "lines"),
+    # This stretches the facets vertically relative to width
+    # Lower number = shorter/wider; Higher number = taller
+    aspect.ratio = 0.05
   )
 ```
 
-```{r}
-# 1. Get the names of the variables you want to plot
-# Excluding 'date' and any other non-numeric columns
-plot_vars <- colnames(df_diff)[sapply(df_diff, is.numeric)]
+These plots show the distribution of several variables.
+```{r, out.width = "100%"}
+# 1. Identify numeric columns and grab the first 24
+all_numeric_vars <- colnames(altered_data)[sapply(altered_data, is.numeric)]
+first_24_vars <- all_numeric_vars[35:52]
 
-# 2. Set up the 3x8 grid layout
-# Adjust margins so the labels don't overlap (bottom, left, top, right)
-par(mfrow = c(3, 8), mar = c(4, 4, 3, 1))
+# 2. Filter and reshape to long format
+df_pirate_long <- altered_data %>%
+  select(all_of(first_24_vars)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  # Keep them in the order they appear in your dataframe
+  mutate(variable = factor(variable, levels = first_24_vars))
 
-# 3. Loop through and create a pirate plot for each variable
-for (v in plot_vars) {
-  yarrr::pirateplot(
-    formula = as.formula(paste(v, "~ 1")), # "~ 1" since we aren't grouping
-    data = df_diff,
-    main = v,               # Title of each sub-plot
-    theme = 1,              # Classic pirate plot theme
-    pal = "basel",          # Clean color palette
-    bean.f.col = "steelblue", 
-    point.pch = 16, 
-    point.col = "black", 
-    point.o = 0.1,          # Transparency to handle overplotting
-    avg.line.o = 0.8, 
-    inf.method = "hdi",     # High-density interval for the "bars"
-    ylab = "Value", 
-    xlab = ""
+# 3. Create the 3x8 grid
+ggplot(df_pirate_long, aes(x = 1, y = value)) +
+  # The "Bean" (Density)
+  geom_violin(fill = "steelblue", alpha = 0.3, color = "black", size = 0.3) +
+  # The "Points" (Raw data)
+  geom_jitter(width = 0.1, alpha = 0.1, size = 0.4, color = "black") +
+  # The "Bar" (Mean)
+  stat_summary(fun = "mean", geom = "crossbar", width = 0.5, color = "red", size = 0.5) +
+  # 3x8 Grid
+  facet_wrap(~variable, ncol = 6, scales = "free_y") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    strip.text = element_text(size = 7, face = "bold"),
+    panel.spacing = unit(1, "lines")
+  ) +
+  labs(
+    subtitle = "Red bar indicates the mean; density 'beans' show distribution shape",
+    y = "Value"
   )
-}
-
-# Reset the plotting layout to single view when done
-par(mfrow = c(1, 1))
-```
-
-```{r}
-# correlation plot
-
-plot_map_correlation <- function(data, title_text) {
-  # 1. Calculate correlation and mask the upper triangle
-  corr_matrix <- data %>%
-    select(where(is.numeric)) %>%
-    cor(use = "pairwise.complete.obs")
-  
-  # Set the upper triangle to NA
-  corr_matrix[upper.tri(corr_matrix)] <- NA
-  
-  # 2. Reshape and remove the NAs
-  df_corr <- as.data.frame(as.table(corr_matrix)) %>%
-    filter(!is.na(Freq)) %>%
-    rename(Var1 = Var1, Var2 = Var2, Correlation = Freq)
-  
-  # 3. Plotting
-  ggplot(df_corr, aes(x = Var1, y = Var2, fill = Correlation)) +
-    geom_tile(color = "white") +
-    scale_fill_gradient2(
-      low = "#b2182b", high = "#2166ac", mid = "#f7f7f7", 
-      midpoint = 0, limit = c(-1, 1), 
-      name = "Correlation"
-    ) +
-    # This keeps the "triangle" shape
-    coord_fixed() + 
-    theme_minimal() +
-    theme(
-      # Rotate labels to be "perpendicular" to the hypotenuse (diagonal)
-      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 9),
-      axis.text.y = element_text(angle = 45, vjust = 1, hjust = 1, size = 9),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      axis.title = element_blank()
-    ) +
-    labs(title = title_text)
-}
-
-# Usage for your two dataframes:
-# plot_map_correlation(df, "Macroeconomic Variable Correlations (Levels)")
-# plot_map_correlation(df_diff, "Macroeconomic Variable Correlations (First-Difference)")
 ```
