@@ -9,6 +9,7 @@
 # Libraries required
 library(tidyverse)
 library(ggplot2)
+library(dlookr)
 #################################
 
 # Our exploratory analyis will focus on the "haevy hitters" of macroeconomic indicators
@@ -132,6 +133,8 @@ print(box_fed_diff)
 # under that context.
 # Additionally, our large outlier occurs during a recession
 
+
+
 #######################################################################
 # Conditional distributions for U3 rate
 ########################################################################
@@ -146,3 +149,89 @@ dist_u3_regime = ggplot(data %>% drop_na(recession, u3_unemployment),
   theme(legend.position = "bottom")
 
 print(dist_u3_regime)
+# It seems as though there is strong overlap between the two distributions, with
+# recessionary periods tending to have more months with higher unemployment,
+# indicating little predictive power of the level of the variable alone
+
+# We'll now look at the changes in unemployment
+dist_u3_rate_regime = ggplot(data %>% drop_na(recession, u3_unemployment_diff), 
+                             aes(x = u3_unemployment_diff, 
+                                 fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
+  geom_density(alpha = 0.6) +
+  scale_fill_manual(values = c("Expansion" = "#7D4600", "Recession" = "#A4B0F5")) +
+  theme_minimal() +
+  labs(title = "Distribution: U3 Unemployment Monthly Change by Regime",
+       x = "Monthly Change (Percentage Points)", y = "Density", fill = "Economic State") +
+  theme(legend.position = "bottom")
+
+print(dist_u3_rate_regime)
+
+# This graph is telling; the distributions overlap heavily, but there is a notable 
+# difference in where they are centered, with the recessionary points having positive
+# changes in the unemployment rate, with notable outliers. Similarly to our examination
+# of the federal funds rate, we'll also look at a box and whiskers plot
+box_u3_diff = ggplot(data %>% drop_na(recession, u3_unemployment_diff), 
+                     aes(x = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")), 
+                         y = u3_unemployment_diff, 
+                         fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
+  geom_boxplot(alpha = 0.8) +
+  scale_fill_manual(values = c("Expansion" = "#7D4600", "Recession" = "#A4B0F5")) +
+  theme_minimal() +
+  labs(title = "Distribution: U3 Unemployment Shifts by Regime",
+       x = "Economic State", 
+       y = "Month-over-Month Change (Percentage Points)") +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold"))
+
+print(box_u3_diff)
+
+# We get a similar finding here. The distributions are centered differently, with
+# an extreme outlier during a recession.
+
+
+
+#########################################################################
+# Extreme value analysis for u3 and ffr
+#########################################################################
+
+# Earlier, we discovered values of the U3 unemployment change, and the fed funds rate
+# change had extreme values, here we shall investigate them
+
+data %>% 
+  arrange(fedfunds_diff) %>% 
+  head()
+
+# The large negative federal funds rate decrease occured in May, 1980, which
+# coincides with violatile behavior by the Federal Reserve, namely, in response
+# to a sudden recession, interest rates were greatly cut. Seeing as it is a feature
+# of our data that can help inform our 
+
+# For our unemployment outliers
+data %>% 
+  arrange(desc(u3_unemployment_diff)) %>% 
+  head()
+
+# The massive drop in employment can be explained by COVID. 
+
+# Because these outliers 
+# represent genuine, systemic macroeconomic events rather than some sort of data collection errors, 
+# capping them would artificially bias the exact structural signals that Persistent
+# homology is intended to detect.
+
+
+
+
+#########################################################################
+# Other extreme values / outlier in the dataset
+#########################################################################
+
+# As was argued earlier, outliers, as long as they are not artifacts of poor
+# data collection, should remain in our analysis as our use of persistent homology
+# can rely on larger structural shifts.
+
+# with that said, we will now conduct an analysis to see if there are data errors
+# that are producing outliers
+
+# We'll tkake advantage of the dlookr package, which allows for an analysis
+# of a large collection of features
+
