@@ -1,0 +1,52 @@
+---
+title: "ECNS 560 Project Writeup"
+output: html_document
+date: "2026-04-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Topic and Motivation
+For this project, we aim to predict recessions, with more accuracy than existing indicators.  In particular, existing recession indicators tend to be far overfit, and create an indicator as a function of one or two macroeconomic variables which historically change in advance of recessions.  These tend to have many false positives -- hence the saying "economists have predicted 11 of the past 5 recessions."  We believe we can create an indicator which uses many more variables, and identify a region of space which contains recessions -- when our vector of these variables enters this region, the recession indicator will flag.  Importantly, this will rely on all of the variables we use, rather than some small subset.  
+
+## Data and Processing
+Our data is retrieved from Yahoo Finance (via the "tidyquant" R package) and from FRED (also via the "tidyquant" R package).  This data includes time series for the daily close of major stock indices (S&P 500, DOW, NASDAQ, Russel 2000), common hedges for uncertainty (gold, silver, Case-Schiller Index for real estate), and monthly data on macroeconomic data (U3 and U6 unemployment, GDP, CPI, Federal Funds Rate, Housing Starts, ...).  Collectively, these present a multi-faceted image of the economy at a point in time -- in particular, they represent both classical macroeconomic indicators and aggregating signals for the "shadow economy" of asset prices and volatility hedges.  Further, the vast majority of our data begins well before 2000, with some stretching back to the beginning of the 20th century.  
+
+Our primary data of interest is the macroeconomic data -- we are interested in predicting and better understanding recessions, so GDP is one of our most relevant points.  GDP is released quarterly, so this would require collapsing much of our data and we would have limited power.  Instead, we will primarily use **Industrial Output -- make sure this is correct**, which is released monthly, at the same frequency as most of our other macroeconomic data.  To match this, we collapse our more granular data (like asset prices) to monthly, creating a monthly mean close price and an interday volatility measure from the variance of these daily closing prices within the month.  This collapsed data is combined with the other data, merging on the primary key of year-month, at which point a single primary key for our cleaned dataset is created.
+
+From this, we do some further processing, to create a relative-scaled first-difference dataset -- that is, we create a mirror dataset that has percent change at each point, rather than continue analysis in levels.  Both will be useful, but the first difference and relative scaling normalizes and whitens the data, reducing issues of autocorrelation and scale differences between variables.  
+
+## Visualizations
+This plot illustrates what periods we do have data, and where it is missing.  As we see here, most of the data is present and once the data series starts, it is almost perfectly complete.
+
+```{r}
+# Barchart through time of when we have data
+```
+
+This panel shows the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data.
+
+```{r}
+# Panel of "dynamical systems butterfly"-type paths in 3D space
+# ideally with a color coded line to indicate what path the economy
+# takes through time
+```
+
+Here, we can see 
+
+```{r}
+# "Stacked" time series of returns/percent-changes through time
+# For a few financial assets, Industrial Production or whatever that is,
+# probably also gold and the Case-Schiller index
+```
+
+```{r}
+# Something to illustrate the clustering -- bar code and/or 
+# chart of "count of clusters" on Y axis and radius on X axis
+```
+
+```{r}
+# Can we do an interactive plot here?  3D scatterplot of points through time
+# or the dynamical systems paths, with available rotation and choice of axis.
+```
