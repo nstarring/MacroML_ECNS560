@@ -1,19 +1,17 @@
 ################################################################################
 # This script serves multiple, related purposes for our analysis
-# It will first merge the disparate datasets we've so far collected depending on
+# It will merge the disparate datasets we've so far collected depending on
 # their unit of observation (monthly, daily, etc.) this also mostly coincides with the
 # sources of the data
-# Following this, the data for the daily observed variables will then be inspec
-# ted for missingness, which will guide our following effort to convert the daily
-# measures into monthly ones
-# 
+
 # A large monthly dataset will then be created, which will then be ran through 
-# the "Data Cleaning Checklist"(Hagerty, 2024) 
+# the "Data Cleaning Checklist"(Hagerty, 2024), in the "cleaning" script
 
 # Required libraries
 ################################################################################
 library(naniar)
 library(tidyverse)
+library(lubridate)
 ################################################################################
 
 ################################################################################
@@ -51,11 +49,14 @@ for(fpath in monthly_files){
 # Renaming, I recognize that this isn't ideal practice, but since the chagnes
 # are so minor, and are mostly cosmetic in nature, it isn't that problematic
 gold_price_monthly = gold_price_monthly %>% 
-  rename(date = Date)
-
+  rename(date = Date) %>% 
+  mutate(date = ym(date))
+  
+  
 # Using lubridate to edit date
 google_trends_monthly = google_trends_monthly %>%
   mutate(date = my(date))
+
 
 
 ##############################
@@ -167,10 +168,21 @@ monthly_market_wide = monthly_market_data %>%
   ) %>%
   arrange(date)
 
+#########################
+# Handling quarterly GDP
+#########################
+rgdp_quarterly = read_csv("data/raw/rgdp_quarterly.csv", show_col_types = FALSE) %>% 
+  rename(rgdp = price) %>% 
+  select(date, rgdp)
+
 ########################
 # THE FULL JOIN
 ########################
 full_merged = monthly_market_wide %>% 
   full_join(monthly_merged, by = "date") %>% 
+  full_join(rgdp_quarterly, by = "date") %>% 
   relocate(year, .after = date) %>% 
   relocate(month, .after = year)
+
+# Sending the data to the data folder
+write_csv(full_merged, paste0("data/dirty/full_monthly_merged_uncleaned.csv"))

@@ -15,8 +15,6 @@
 # and then create a new sysytem, variable SERPAPI_KEY
 
 # All variables aside from the price of gold over time come from this script
-
-# Gold prices are sourced from the World Gold Council
 ################################################################################
 
 
@@ -32,9 +30,6 @@ library(readr)
 library(httr)
 library(jsonlite)
 library(tidyverse)
-
-# For gold data
-library(wbstats)
 ################################################################################
 
 # We first check and ensure that the user has the directory structure, and create
