@@ -1,5 +1,5 @@
 ##############################################################################
-#
+
 # This script will clean the merged dataset, and is thusly meant to be ran once
 # raw_data_procurement.R and merge_data.R have been ran, respectively.
 
