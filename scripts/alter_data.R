@@ -28,7 +28,7 @@ altered_data = ua_data %>%
       .fns = ~log(.x / lag(.x)),
       .names = "{.col}_logret"
     
-    # Now doing the same for percentage variables, with differencing
+    # Now doing the same for percentage and other variables, with differencing
     ),
     across(
       .cols = c(

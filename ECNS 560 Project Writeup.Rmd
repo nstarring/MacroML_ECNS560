@@ -20,6 +20,14 @@ Our primary data of interest is the macroeconomic data -- we are interested in p
 
 From this, we do some further processing, to create a relative-scaled first-difference dataset -- that is, we create a mirror dataset that has percent change at each point, rather than continue analysis in levels. Both will be useful, but the first difference and relative scaling normalizes and whitens the data, reducing issues of autocorrelation and scale differences between variables.
 
+From this, we do some further processing, and append certain functions of our variables onto that dataset to allow for a more robust approach when using persistent homology. Namely, we'll use log returns for the variables representing indicies that trend upwards (S&P 500, Case-Shiller index, etc.) , and the variables real gdp, gold price, and monthly industrial output. We use log returns because these variables grow exponentially over time, and If we leave compounding variables in their raw form, the sheer scale of their growth can push the point cloud into a a single, straight 1D line across high-dimensional space that is not conducive for our analysis.
+
+## EDIT PLEASE LOOK AT
+
+For the rest of the variables, first differencing was utilized to gauge within-variable change over time. For variables that are percentages (interest rates, unemployment), this is to avoid misleading interpretations about percentage changes. Additionally, for the sentiment data, since the variables often have massive spikes, using percentage change could lead to large values without that great of an absolute change, (a page getting viewed 10 times on one day, 10,000 the next when a social media influencer talks about a recession, for example). For the volatility and housing starts variables, since they are mean-reverting, and don't trend upwards, they were difference.
+
+Finally, each one of these new variables is normalized, to work with the persistent homology, if they were kept in levels, little could be gained from the topological structures that we discovered.
+
 ## Visualizations
 
 This plot illustrates what periods we do have data, and where it is missing. As we see here, most of the data is present and once the data series starts, it is almost perfectly complete.
