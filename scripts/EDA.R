@@ -11,3 +11,5 @@ library(tidyverse)
 library(ggplot2)
 #################################
 
+# Our exploratory analyis will focus on the "haevy hitters" of macroeconomic indicators
+# Namely, we'll focus on 
