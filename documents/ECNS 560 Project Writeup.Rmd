@@ -10,6 +10,7 @@ library(tidyverse)
 library(ggplot2)
 library(plotly)
 library(yarrr)
+load("./data/clean/transformed_cleaned_data.RData")
 ```
 
 ## Topic and Motivation
@@ -31,15 +32,12 @@ Finally, we append some functions of our variables onto that dataset to allow fo
 This plot illustrates what periods we do have data, and where it is missing. As we see here, most of the data is present and once the data series starts, it is almost perfectly complete.
 
 ```{r}
-load("../data/clean/transformed_cleaned_data.RData")
-##am just using df for dataframe right now, I don't know exactly what the name is
-
 # 1. Manually list the columns you want to include
-vars_to_plot <- c("x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8")
+vars_to_plot <- c("dow_avg_close", "nasdaq_avg_close", "fedfunds", "gold_price", "housing_starts", "tbill_1yr", "u6_unemployment", "case_shiller")
 
 # 2. Reshape and filter
 # Replace 'date_col' with the actual name of your date column
-df_long <- df %>%
+df_long <- altered_data %>%
   pivot_longer(
     cols = all_of(vars_to_plot), 
     names_to = "variable", 
@@ -49,7 +47,7 @@ df_long <- df %>%
   filter(!is.na(value) & value != "")
 
 # 3. Create the plot
-ggplot(df_long, aes(x = date, y = variable)) +
+ggplot(df_long, aes(x = as.Date(date), y = variable)) +
   # Using geom_tile creates the horizontal bars
   # width = 31 ensures the monthly tiles touch to form a solid line
   geom_tile(width = 31, height = 0.7, fill = "steelblue") +
@@ -63,42 +61,70 @@ ggplot(df_long, aes(x = date, y = variable)) +
 This panel shows the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data.
 
 ```{r}
-# Panel of "dynamical systems butterfly"-type paths in 3D space
-# ideally with a color coded line to indicate what path the economy
-# takes through time
+# --- REPLACEMENT CODE CHUNK FOR 3D DYNAMICAL SYSTEMS WITH TIME KEY ---
 
-# 1. Helper function to create an individual 3D plot
-# This maps your date to the color scale of the line
-create_3d_plot <- function(data, x_var, y_var, z_var, title_text) {
-  plot_ly(data, 
-          x = ~get(x_var), 
-          y = ~get(y_var), 
-          z = ~get(z_var), 
-          type = 'scatter3d', 
-          mode = 'lines',
-          # Mapping color to the date column for the time-progression effect
-          line = list(color = ~as.numeric(date), colorscale = 'Viridis', width = 4)) %>%
-    layout(title = title_text,
-           scene = list(xaxis = list(title = x_var),
-                        yaxis = list(title = y_var),
-                        zaxis = list(title = z_var)))
+# 1. Updated Helper Function 
+create_3d_plot <- function(data, x_var, y_var, z_var, title_text, scene_id = "scene", show_colorbar = FALSE) {
+  
+  plot_data <- data %>%
+    drop_na(all_of(c(x_var, y_var, z_var, "date")))
+  
+  # Ensure date is numeric for the gradient
+  plot_data$date_num <- as.numeric(as.Date(plot_data$date))
+  
+  # Determine the year range for the colorbar labels
+  date_range <- range(as.Date(plot_data$date), na.rm = TRUE)
+  year_sequence <- seq(year(date_range[1]), year(date_range[2]), by = 5)
+  year_numeric <- as.numeric(as.Date(paste0(year_sequence, "-01-01")))
+
+  plot_ly(plot_data, 
+          x = ~get(x_var), y = ~get(y_var), z = ~get(z_var), 
+          type = 'scatter3d', mode = 'lines',
+          line = list(
+            color = ~date_num, 
+            colorscale = 'Viridis', 
+            width = 4,
+            # Only show the colorbar for one plot to avoid duplicates
+            colorbar = if(show_colorbar) list(
+              title = "Time",
+              tickvals = year_numeric,
+              ticktext = year_sequence,
+              x = 1.1, # Positions it to the right of the entire panel
+              len = 0.8
+            ) else NULL,
+            showscale = show_colorbar
+          ),
+          scene = scene_id) %>%
+    layout(title = title_text)
 }
 
-# 2. Manually define the column groups for each of the 4 panels
-# Panel 1: x1, x2, x3 | Panel 2: x4, x5, x6 | Panel 3: x7, x8, x9 | Panel 4: x10, x11, x12
-p1 <- create_3d_plot(df, "x1", "x2", "x3", "System A")
-p2 <- create_3d_plot(df, "x4", "x5", "x6", "System B")
-p3 <- create_3d_plot(df, "x7", "x8", "x9", "System C")
-p4 <- create_3d_plot(df, "x10", "x11", "x12", "System D")
+# 2. Assign unique scenes - we only enable 'show_colorbar' on p2 (top right)
+p1 <- create_3d_plot(altered_data, "dow_avg_close", "dow_volatility", "fedfunds", 
+                     "Federal Funds and Dow", "scene")
+p2 <- create_3d_plot(altered_data, "fedfunds", "case_shiller", "cpi", 
+                     "Housing, Interest, and Inflation", "scene2", show_colorbar = TRUE)
+p3 <- create_3d_plot(altered_data, "industrial_production_logret", "u6_unemployment", "tbill_10yr", 
+                     "Labor and Yield Curve", "scene3")
+p4 <- create_3d_plot(altered_data, "gold_price_logret_scaled", "tbill_1yr", "tbill_10yr", 
+                     "Gold and Bonds", "scene4")
 
 # 3. Combine into a 2x2 grid
-# nrows = 2 creates the 2x2 panel layout
 panel_plot <- subplot(p1, p2, p3, p4, nrows = 2, margin = 0.05) %>%
-  layout(title = "3D Dynamical Systems Analysis")
+  layout(title = "3D Dynamical Systems Analysis",
+         scene = list(domain = list(x = c(0, 0.45), y = c(0.55, 1)),
+                      xaxis = list(title = "Dow"), yaxis = list(title = "Vol"), zaxis = list(title = "FedFunds")),
+         scene2 = list(domain = list(x = c(0.55, 1), y = c(0.55, 1)),
+                       xaxis = list(title = "FedFunds"), yaxis = list(title = "Housing"), zaxis = list(title = "CPI")),
+         scene3 = list(domain = list(x = c(0, 0.45), y = c(0, 0.45)),
+                       xaxis = list(title = "IndProd"), yaxis = list(title = "U6"), zaxis = list(title = "10yr")),
+         scene4 = list(domain = list(x = c(0.55, 1), y = c(0, 0.45)),
+                       xaxis = list(title = "Gold"), yaxis = list(title = "1yr"), zaxis = list(title = "10yr")))
 
 # View the result
 panel_plot
 ```
+
+
 
 Here, we can see
 
