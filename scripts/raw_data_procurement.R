@@ -14,7 +14,7 @@
 # usethis::edit_r_environ()
 # and then create a new sysytem, variable SERPAPI_KEY
 
-# The same process is required for the Nasdaq data as well
+# All variables aside from the price of gold over time come from this script
 ################################################################################
 
 
@@ -31,6 +31,8 @@ library(httr)
 library(jsonlite)
 library(tidyverse)
 
+# For gold data
+library(wbstats)
 ################################################################################
 
 # We first check and ensure that the user has the directory structure, and create
@@ -67,13 +69,6 @@ write_csv(nasdaq_daily, paste0(file_location, "nasdaq_daily.csv"))
 # Russell 2000
 russell_daily = tq_get("^RUT", get = "stock.prices", from = "1900-01-01", to = Sys.Date())
 write_csv(russell_daily, paste0(file_location, "russell2000_daily.csv"))
-
-# Now we'll fetch gold and silver data using quandl
-# This is a tool to interact with the nasdaq data link
-
-
-
-
 
 ################################################################################
 # Now for the macroeconomic data from FRED
