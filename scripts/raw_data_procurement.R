@@ -15,6 +15,8 @@
 # and then create a new sysytem, variable SERPAPI_KEY
 
 # All variables aside from the price of gold over time come from this script
+
+# Gold prices are sourced from the World Gold Council
 ################################################################################
 
 
@@ -85,9 +87,13 @@ write_csv(tbill_10yr_monthly, paste0(file_location, "tbill_10yr_monthly.csv"))
 cpi_monthly = tq_get("CPIAUCSL", get = "economic.data", from = "1900-01-01", to = Sys.Date())
 write_csv(cpi_monthly, paste0(file_location, "cpi_monthly.csv"))
 
-# Unemployment Rate (Monthly)
+# Unemployment Rate (Monthly) U3
 unrate_monthly = tq_get("UNRATE", get = "economic.data", from = "1900-01-01", to = Sys.Date())
 write_csv(unrate_monthly, paste0(file_location, "unemployment_monthly.csv"))
+
+# Other unemployment measure
+u6_unemployment_monthly = tq_get("U6RATE", get = "economic.data", from = "1900-01-01", to = Sys.Date())
+write_csv(u6_unemployment_monthly, paste0(file_location, "u6_unemployment_monthly.csv"))
 
 # Fed funds rate
 fedfunds_monthly = tq_get("FEDFUNDS", get = "economic.data", from = "1900-01-01", to = Sys.Date())
@@ -139,7 +145,7 @@ recession_views_monthly = fromJSON(rawToChar(wiki_call$content))$items %>%
   mutate(date = as.Date(paste0(substr(timestamp, 1, 4), "-", substr(timestamp, 5, 6), "-01"))) %>%
   select(date, views)
 
-write_csv(recession_views_monthly, paste0(file_location, "recession_views_monthly.csv"))
+write_csv(recession_views_monthly, paste0(file_location, "recession_views_wiki_monthly.csv"))
 
 # Google trends data
 # Values represent a relative index that goes from 0-100, with higher values
