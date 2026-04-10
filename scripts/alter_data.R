@@ -78,9 +78,25 @@ altered_data = ua_data %>%
   # Adding the recessions
   rowwise() %>%
   mutate(
-    recession = ifelse(any(date >= nber_recessions$start & date <= nber_recessions$end), 1, 0)
+    recession = ifelse(any(date >= nber_recessions$start & date <= nber_recessions$end), 1, 0),
   ) %>%
   ungroup() %>%
+  
+  # Adding the 6-month forward-looking variable
+  mutate(
+    # We also add a variable indicating if a recession happens in the next 6 months
+    recession_win_6months = ifelse(
+      # These form a stacked "or" condition where if a recession is within the next 6 obs,
+      # we note it
+      lead(recession, 1) == 1 | 
+        lead(recession, 2) == 1 | 
+        lead(recession, 3) == 1 | 
+        lead(recession, 4) == 1 | 
+        lead(recession, 5) == 1 | 
+        lead(recession, 6) == 1, 
+      1, 0
+    )
+  ) %>%
   # No idea how this 'X' var got added
   select(-X)
 

@@ -3,6 +3,9 @@
 # This script is to conduct exploratory data analysis (EDA) on the dataset
 # that has been cleaned and modified in other scripts
 #
+# This script DOES NOT save ALL visualizations. Look at the "visualization.R' file
+# to find visualizations that are saved in the output directory.
+#
 ##############################################################################
 
 #################################
@@ -10,15 +13,26 @@
 library(tidyverse)
 library(ggplot2)
 library(dlookr)
+library(skimr)
+library(dygraphs)
+library(xts)
 #################################
 
+# To gain a foundational understanding of our data, we'll first skim it
+full_data = read.csv("data/clean/transformed_cleaned_data.csv")
+skim(full_data)
+
+
+########################################################################
+# Introductory exploration of U3 and Federal Funds Rate
+########################################################################
+#
 # Our exploratory analyis will focus on the "haevy hitters" of macroeconomic indicators
 # Namely, we'll focus on the federal funds rate and the U3 unemployment rate
 
-
 data = read.csv("data/clean/transformed_cleaned_data.csv") %>% 
   select(date, year, month, rgdp, fedfunds, u3_unemployment,
-    fedfunds_diff, u3_unemployment_diff, recession
+    fedfunds_diff, u3_unemployment_diff, recession, recession_win_6months
     ) %>% 
   filter(year > 1950)
 
@@ -28,7 +42,7 @@ summary(data %>% select(-date))
 # From this, in adherence with the prompt, we'll look at unconditional
 # distributions for our variables of interest
 #
-# Since raw time series datat would be sort of confusing to visualize using
+# Since raw time series data would be sort of confusing to visualize using
 # one, we'll look at the differences
 
 # Plotting unconditional distributions of the differences
@@ -67,6 +81,7 @@ boxplot(data$fedfunds_diff)
 
 # The -~6 outlier seems off. We'll take a closer look in the outliers section
 range(data$fedfunds_diff, na.rm=T)
+
 
 
 #######################################################################
@@ -135,6 +150,8 @@ print(box_fed_diff)
 
 
 
+
+
 #######################################################################
 # Conditional distributions for U3 rate
 ########################################################################
@@ -190,6 +207,130 @@ print(box_u3_diff)
 
 
 
+
+
+##########################################################################
+# How U3 and FFR vary together
+##########################################################################
+
+# Since persistent homology relies on relationships via geometric distance,
+# it is wise to look at each of the variables together
+
+# looking at levels first
+scatter_levels = ggplot(data %>% drop_na(u3_unemployment, fedfunds, recession), 
+  aes(y = fedfunds, x = u3_unemployment, color = factor(recession))) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = c("0" = "#f18701", "1" = "#7678ed"), labels = c("Expansion", "Recession")) +
+  theme_minimal() +
+  labs(title = "Fed Funds vs. U3 Unemployment",
+    y = "Federal Funds Rate",
+    x = "U3 Unemployment Rate",
+    color = "Economic State")
+
+print(scatter_levels)
+
+# This graph is actually quite interesting, we see clustering of points when we
+# aren't in a recession, but see more volatility/ pattern breaking when in recession
+# this indicates that PH may yield interesting results
+
+# We also do the same with a lagged variable
+scatter_levels_lag = ggplot(data %>% drop_na(u3_unemployment, fedfunds, recession_win_6months), 
+  aes(y = fedfunds, x = u3_unemployment, color = factor(recession_win_6months))) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = c("0" = "#f18701", "1" = "#7678ed"), labels = c("Not", "Upcoming Recession")) +
+  theme_minimal() +
+  labs(title = "Fed Funds vs. U3 Unemployment",
+    y = "Federal Funds Rate",
+    x = "U3 Unemployment Rate",
+    color = "Upcoming Recession within 6 months")
+
+print(scatter_levels_lag)
+
+# This gives us more confidence to think recessions, or their precession
+# can be spotted by structural breaks from the existing point cloud
+
+
+# now doing the same but for the differenced shocks
+scatter_diffs = ggplot(data %>% 
+    drop_na(u3_unemployment_diff, fedfunds_diff, recession) %>% 
+    # Filtering out extreme value to better see center of distribution
+    filter(fedfunds_diff >-3.7 & u3_unemployment_diff < 5)
+  , 
+  aes(x = fedfunds_diff, y = u3_unemployment_diff, color = factor(recession))) +
+  geom_point(alpha = 0.5) +
+  scale_color_manual(values = c("0" = "#f18701", "1" = "#7678ed"), labels = c("Expansion", "Recession")) +
+  theme_minimal() +
+  labs(title = "Fed Funds Shifts vs. Unemployment Shifts, 2 major outliers excluded",
+    x = "Monthly Change in Fed Funds Rate",
+    y = "Monthly Change in U3 Unemployment",
+    color = "Economic State")
+
+print(scatter_diffs)
+
+# We have similar findings here
+
+
+
+##########################################################################
+# How U3 and FFR vary intertemporaly
+##########################################################################
+
+# We should recognize that our data is a time series, and looking at distri
+# butions can be misleading due to intertemporal correlations, and the 
+# idea that we aren't merely taking random draws from some population.
+
+# We'll visualize how they vary with time
+# plotting both raw variables over time
+
+# Havng trouble with time series with my date object
+data$date = as.Date(data$date)
+
+# We're going to use dygraph and XTS to better visualize this long time series
+data = data %>% arrange(date)
+data$date = as.Date(data$date)
+
+# extract the start and end dates of recessions from recession
+# This will be used for shading later
+rec_starts = data$date[which(diff(c(0, data$recession)) == 1)]
+rec_ends   = data$date[which(diff(c(data$recession, 0)) == -1)]
+
+# create the time series objects required for dygraphs
+xts_levels = xts(data[, c("fedfunds", "u3_unemployment")], order.by = data$date)
+xts_diffs  = xts(data[, c("fedfunds_diff", "u3_unemployment_diff")], order.by = data$date)
+
+# build the interactive levels plot
+dy_levels = dygraph(xts_levels, main = "Historical Levels: Fed Funds and Unemployment") %>%
+  dySeries("fedfunds", label = "Fed Funds Rate", color = "#ff7d00", strokeWidth = 2) %>%
+  dySeries("u3_unemployment", label = "U3 Unemployment", color = "#15616d", strokeWidth = 2) %>%
+  dyAxis("y", label = "Rate (%)") %>%
+  dyRangeSelector()
+
+# apply the gray recession shading using looping
+for(i in seq_along(rec_starts)) {
+  dy_levels = dy_levels %>% dyShading(from = rec_starts[i], to = rec_ends[i], color = "lightgray")
+}
+
+# build the interactive diffs plot
+dy_diffs = dygraph(xts_diffs, main = "Historical Shocks: Rate Changes vs Employment Shifts") %>%
+  dySeries("fedfunds_diff", label = "Fed Funds Shift", color = "#ff7d00", strokeWidth = 2) %>%
+  dySeries("u3_unemployment_diff", label = "U3 Shift", color = "#15616d", strokeWidth = 2) %>%
+  dyAxis("y", label = "Month-over-Month Change") %>%
+  dyRangeSelector()
+
+for(i in seq_along(rec_starts)) {
+  dy_diffs = dy_diffs %>% dyShading(from = rec_starts[i], to = rec_ends[i], color = "lightgray")
+}
+
+# view the plots
+dy_levels
+dy_diffs
+# These graphs tell an interesting story. From the levels, it seems like each
+# variable dances after eachother, which is to be expected as
+# the federal funds rate is a monetary policy tool to control employment (and inflation) 
+
+# We have similar findings with the shifts of the two variables, with shifts seemingly
+# related to one another from being staggered or something else
+
 #########################################################################
 # Extreme value analysis for u3 and ffr
 #########################################################################
@@ -221,6 +362,7 @@ data %>%
 
 
 
+
 #########################################################################
 # Other extreme values / outlier in the dataset
 #########################################################################
@@ -235,3 +377,30 @@ data %>%
 # We'll tkake advantage of the dlookr package, which allows for an analysis
 # of a large collection of features
 
+# Importing our large dataset
+
+outlier_report = diagnose_outlier(full_data)
+print(outlier_report)
+# Examining our outliers, we don't find anything that is extremely alarming in 
+# terms of data entry/ data errors, seeing as we don't see any physically impossible 
+# values. These extremes align with known historical market crashes.
+
+# Some variables are extremely volatile, with log returns of the price of gold
+# and snp500 violatility each having around ~35% of their data points made up
+# of outliers
+
+##########################################################################
+# Missing values are discussed and handled in the "clean_data" script
+# We found no meaningful missingness within the ranges that each series
+# covers. Missingness is only concerning in that it restricts our period
+# of analysis to be that where we have our variables of interest.
+##########################################################################
+
+###########################################################################
+# Transformations are handled and defended in the "alter data" script
+# transformations for this analysis consist of converting variables into
+# their "monthly change" computed via simple first differencing and log 
+# returns where applicable. The data was then normalized, since PH relies
+# upon normalized features.
+#
+###########################################################################

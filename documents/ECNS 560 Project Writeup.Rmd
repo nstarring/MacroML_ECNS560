@@ -31,13 +31,21 @@ Our data is retrieved from Yahoo Finance (via the "tidyquant" R package) and fro
 
 Our primary data of interest is the macroeconomic data -- we are interested in predicting and better understanding recessions, so GDP is one of our most relevant points. GDP is released quarterly, so this would require collapsing much of our data and we would have limited power. Instead, we will primarily use monthly industrial output, which is released monthly, at the same frequency as most of our other macroeconomic data. To match this, we collapse our more granular data (like asset prices) to monthly, creating a monthly mean close price and an interday volatility measure from the variance of these daily closing prices within the month. This collapsed data is combined with the other data, merging on the primary key of year-month, at which point a single primary key for our cleaned dataset is created.
 
-From this, we do some further processing, to create a relative-scaled first-difference dataset. Importantly, this relative-scaled first-difference is computed as a direct first-difference for those values which are already in percentage terms (interest rates or unemployment), and similarly, we also use this direct first-differencing for mean-reverting series, to avoid seeing explosive growth around zero or negligible percent changes for large level-valued changes as it reaches peaks or troughs.  Both the transformed and the untransformed data will be useful, but the first difference and relative scaling normalizes and whitens the data, reducing issues of autocorrelation and scale differences between variables.
+It is also worth noting that there is a "data appendix" in the "clean_data.R" script.
+
+From this, we do some further processing, to create a relative-scaled first-difference dataset. Importantly, this relative-scaled first-difference is computed as a direct first-difference for those values which are already in percentage terms (interest rates or unemployment), and similarly, we also use this direct first-differencing for mean-reverting series, to avoid seeing explosive growth around zero or negligible percent changes for large level-valued changes as it reaches peaks or troughs. Both the transformed and the untransformed data will be useful, but the first difference and relative scaling normalizes and whitens the data, reducing issues of autocorrelation and scale differences between variables.
 
 Finally, we append some functions of our variables onto that dataset to allow for a more robust approach when using persistent homology. In particular, we use log-returns for our asset data and other compounding indices, which tend to exhibit exponential growth and would thus distort the spacial "shape" of the data we intend to exploit in such a manner as to dominate any further processes, despite its failure as a dominant indicator of recessions.
+
+In terms of missing data, as is addressed in the visualizations section of this report, the only missingness of concern is the lack of duration that some features have data for. Aside from that, missing values are of little concern at this stage, keeping in mind our temporal restrictions.
+
+To ensure the robustness and validity of the data, an analysis of outliers is also carried out on the data, using the *dlookr* package in R. Using this tool, we discovered that while there are extreme values, they are naturally occurring, as most can be explained by looking at the historical period in which they lay. This analysis also shed light to the variability of some of our variables, with certain ones being composed of \~35% outlier observations. With all that said, we will keep these extreme values, as not only are they "real observations", but also are vital for the shocks that we are looking for in our Persistent homology approach.
 
 ## Visualizations
 
 This plot illustrates what periods we do have data, and where it is missing. As we see here, most of the data is present and once the data series starts, it is almost perfectly complete.
+
+### Data Coverage /Missing Values
 
 ```{r}
 # 1. Manually list the columns you want to include
@@ -66,7 +74,11 @@ ggplot(df_long, aes(x = as.Date(date), y = variable)) +
 
 ```
 
-These plots show the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data.  In particular, we can see that there are some patterns and regions that this path seems to end up in -- our goal is to identify some repeating area where recessions occur, and use that pattern or spacial region to predict future recessions.
+Additionally, while not addressed by this graph, in "merge_data.R", it is revealed that, withstanding a short window where some macroeconomic variables were not recorded (due to the government shutdown in late 2025), there are no missing values that aren't simply due to a series not going that far back.
+
+### 3-D Tracking of points through space
+
+These plots show the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data. In particular, we can see that there are some patterns and regions that this path seems to end up in -- our goal is to identify some repeating area where recessions occur, and use that pattern or spacial region to predict future recessions.
 
 ```{r}
 create_3d_plot <- function(data, x_var, y_var, z_var, title_text) {
@@ -132,9 +144,9 @@ p3
 p4
 ```
 
+### Time series for most variables
 
-
-Here, we can see how several variable change through time, as well as visualizing when the series starts.
+Here, we can see how several variable change through time, as well as visualizing when the series starts. This plot allows us to get a better idea of the trends of some of our variables of interest, in order to better inform our understanding of the topological objects created through persistent homology.
 
 ```{r}
 # "Stacked" time series of returns/percent-changes through time
@@ -174,7 +186,10 @@ ggplot(df_long, aes(x = as.Date(date), y = value)) +
   )
 ```
 
+### Distributions for Variables of Interest
+
 These plots show the distribution of several variables.
+
 ```{r, out.width = "100%"}
 # 1. Identify numeric columns and grab the first 24
 all_numeric_vars <- colnames(altered_data)[sapply(altered_data, is.numeric)]
