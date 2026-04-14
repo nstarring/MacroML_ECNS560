@@ -7,6 +7,7 @@
 # A large monthly dataset will then be created, which will then be ran through 
 # the "Data Cleaning Checklist"(Hagerty, 2024), in the "cleaning" script
 
+# THIS SCRIPT IS TO BE RAN AFTER THE "raw_data_procurement.R" file
 # Required libraries
 ################################################################################
 library(naniar)

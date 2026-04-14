@@ -8,6 +8,8 @@
 
 # This script will mostly handle missing values and formatting, transformation will 
 # occur in a seperate file
+
+# THIS FILE IS TO BE RAN AFTER "merge_data.R"
 ##############################################################################
 
 ##############################################################################
@@ -22,11 +24,12 @@ library(naniar)
 
 merged_dirt = read.csv("data/dirty/full_monthly_merged_uncleaned.csv")
 
-
 #######################################
 # Structuring into tidy format
 #######################################
-#view(merged_dirt)
+
+
+# view(merged_dirt)
 
 # Since each column is a variable, and each row is an observation (a monthly one)
 # this data is "tidy"
@@ -75,7 +78,7 @@ merged_dirt_id = merged_dirt %>%
 ########################################
 
 # Markets
-########################################
+##
 
 # Variable: SP500
 # Definition: Index tracking the stock performance of 500 of the largest public companies in the US

@@ -49,3 +49,4 @@ scatter_levels = ggplot(data %>% drop_na(u3_unemployment, fedfunds, recession),
   )
 
 print(scatter_levels)
+

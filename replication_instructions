@@ -1,0 +1,30 @@
+This file is intended to guide a new user to this project through producing interacting with the project.
+
+This project intends to use persistent homology, and topological data analysis to detect patterns between
+macroeconomic variables. These patterns will then be employed to predict recessions.
+
+Topological data analysis relies on topological strucutres between observations in n-space. In English,
+this means that rather than looking at joint covariation (correlation), we'll be looking at the "shapes"
+that the data makes, and compare those shapes across time periods in our dataset. For example, we may be
+interested in how a point cloud suddenly no longer exists the months before a recession.
+
+In terms of replicability, due to the nature of the visualizations that our project employs (most are in 3d or have interactive elements),
+it is difficult to create a standard "output" and "temp folder" that works well for the reproducability exercise
+for ECNS 560/460. The only replicatable visual is a data coverage map showing the coverage of the data that we have over time.
+The code to produce this visual is located in the "missing values" section of the 
+"clean_data.R" script.
+
+With that said, the scripts to run in order to replicate our data are as follows:
+
+1) raw_data_procurement.R
+2) merge_data.R
+3) clean_data.R
+4) alter_data.R
+
+***** It is worth noting that a key is required to run the raw_data_procurement.R
+script. The script has brief instructions on top regardless.
+
+The scripts "EDA.R" and "clean_data.R" are the workhorses of the exploratory analysis
+for this project, and should be observed in conjunction with the draft document located
+in the "output" folder.
+
