@@ -11,6 +11,8 @@
 # This script is only meant to be ran after alter_data.R so that the 
 # "transformed_cleaned_data.csv / .RData" can be used
 #
+# future and furr are used as the main parallel libraries due to some difficulties
+# when using just parallel
 #
 ##############################################################################
 
@@ -19,14 +21,14 @@
 ##################################
 library(tidyverse)
 # For ripsDiag and wasserstein
-# ripsDiag actually
 library(TDA)
 
-# For parallel computing 
+# For parallel processing
 library(furrr)
 library(future)
+library(parallel)
 
-# Progress bars that work with furrr
+# Progress bars that work with parallel libraries
 library(progressr)
 #################################
 
@@ -37,20 +39,19 @@ library(progressr)
 #################################
 
 ##############################################################################
-# Helper: subset data to shared coverage period, capped at 2024-12-01
+# Shared Coverage helper function
 ##############################################################################
 
 # This helper is used by both window-building functions. It takes the master 
-# dataframe and the vector of variables the user wants to analyze, then finds
-# the range of dates where ALL of those variables have non-missing values.
-
+# dataframe and the vector of variables the user wants to analyze, then fin
+# ds the range of dates where ALL of those variables have non-missing values.
 # It also caps it at the end of 2024 to avoid weird data gaps due to the govern
-# ment shutdown
+# ment shutdown.
 
-# . format is typical for helper functions
 
-.get_shared_coverage_data = function(data, variables) {
-  # Ensuring date is a Date object
+get_shared_coverage_data = function(data, variables) {
+  
+  # Ensuring date is a Date object (when loading in data)
   data = data %>% mutate(date = as.Date(date))
   
   # Subsetting to just the variables of interest plus date
@@ -68,15 +69,160 @@ library(progressr)
   first_date = min(complete_rows$date)
   last_date  = min(max(complete_rows$date), as.Date("2024-12-01"))
   
-  # Subsetting to this range (this keeps only the contiguous shared range)
+  # Subsetting the data to this range
   shared = subset_data %>% 
     filter(date >= first_date & date <= last_date) %>%
     arrange(date)
   
-  # A final check for any remaining missingness, returning an error if so
-  if(any(is.na(shared %>% select(all_of(variables))))){
-    stop("There are still missing values in the shared coverage range.")
-  }
-  
   return(shared)
+}
+
+
+
+
+
+##############################################################################
+# Persistence diagram for window helper function
+##############################################################################
+
+# This function takes a set of data points (the ones in the window), and computes
+# a persistence diagram for each dimension specified, with a given max scale
+
+# max_scale is a paremeter that alters "how big" the n-dimensional sphere around
+# a point can grow. If the parameter is set too small, we risk missing some 
+# topological features that may appear at relatively larger distances apart,
+# (we want to capture outlier points like covid, for example)
+# if we set it too large, it is both computationally intensive, and leads to
+# already connected features (their spheres are touching) creating non-valuable
+# higher-dimensional objects, which we are not interested in for the purposes
+# of this analysis. A more thorough justification for the parameter set will
+# be given later on
+
+compute_diag_obj = function(datum, max_dim, maxscale) {
+  # ripsDiag function computes the Vietoris-Rips filtration for our data
+  # essentially grows an n-dimensional sphere around each point
+  # When two spheres touch, an edge is created between the points, forming stru
+  # ctures. This process keeps track of each structure at different levels
+  # of radius of the sphere.
+  diag_obj = ripsDiag(
+    X = datum,
+    # Setting the max dimension of strucutre it will track
+    maxdimension = max_dim,
+    maxscale = maxscale,
+    # Alters how algorithm is implemented. This way is faster and more memory
+    # efficient
+    library = "GUDHI",
+    # False since we'll be using a different progress bar library
+    printProgress = FALSE
+  )
+  # Returns the object, containing barcode
+  return(diag_obj)
+}
+
+
+
+
+
+
+
+#################################
+#
+# Main Functions
+#
+#################################
+
+##############################################################################
+# Computing persistence diagrams for each window, non-overlapping
+##############################################################################
+
+# Computes persistence diagrams for non-overlapping, consecutive windows
+# Takes the following arguments: data - the cleaned dataframe with desired vars
+#                                variables - a string vector of the variables to be analyzed
+#                                window_size - sets the number of months within the window
+#                                max_dim - sets the dimensionality to be analyzed
+# This function will default use all but 1 cores for working
+#
+# It will return a datafram/tibble containing an identifier variable, the start date
+# of the window, and the end date of the interval, and the diagram object 
+
+barcodes_non_overlapping = function(data, variables, window_size, max_dimension) {
+  
+  # We first subset the data to only include months where all variables have data
+  shared = get_shared_coverage_data(data, variables)
+  
+  # To create our empty tibble, we need to calculate how many windows there will be
+  n_windows  = floor(nrow(shared) / window_size)
+  
+  # output statement just to make sure user isnt getting a very small data set
+  # We'll use message() since it looks nicer
+  message(paste0("Number of months in subsetted data: ", nrow(shared), "\n", 
+              "Number of windows to be computed: ", n_windows))
+  
+  # Creating skeleton tibble
+  windows = tibble(
+    id = 1:n_windows,
+    # We need a way to easily get the starting index for a window and the end index
+    # from the shared dataframe so that we can easily transfer them
+    # The start of the window is 1 window length less than the end of the window 
+    # (obviously) the +1 adjustment is to account for R indexing
+    start_id = (1:n_windows - 1) * window_size + 1,
+    end_id = 1:n_windows * window_size
+  ) %>% 
+    # Now we can easily grab the start and end dates from the shared data
+    mutate(
+      start_date = shared$date[start_id],
+      end_date = shared$date[end_id]
+    )
+  
+  # Now we build a collection of point clouds for each window
+  window_datum = lapply(1:n_windows, function(i){
+    # A matter of slicing the shared data into chunks, and returning
+    # those chunks
+    shared %>% 
+      # Slice the data according to the identifiers we made in the last part
+      slice(windows$start_id[i]:windows$end_id[i]) %>% 
+      select(variables) %>% 
+      # Since the ripsDiag function requires a matrix object (not a tibble/df)
+      as.matrix()
+  })
+  
+  # Now we'll compute the max_scale to set for ripsDiag function
+  # this must be standardized across the computation of every window in order
+  # for a consistently measured Wasserstein distance. To ensure that every
+  # structure is found for every window (we don't miss anything), we'll use the
+  # maximum distance found in any such window between points.
+  max_scale = max(
+    sapply(window_datum, function(window){
+      max(dist(window))
+    })
+  )
+  
+  # Prior to computing each barcode, we'll start up our workers
+  # plan() is a future function which defines the parallel strategy
+  plan(multisession, workers = detectCores() - 1)
+  # Use on.exit() so that the workers are reset once function finishes
+  on.exit(plan(sequential))
+  
+  
+  # with_progress allows for progress tracking
+  with_progress({
+    # Creates progress tracking object, defining how many steps to expect
+    p = progressor(along = window_datum)
+    # Use future_map for parallel processing
+    diagrams = future_map(window_datum, function(window){
+      # Each time a worker finishes, p() is called, advancing progress bar
+      p()
+      compute_diag_obj(window, max_dim = max_dimension, maxscale = max_scale)
+    })
+  })
+  
+  # Now assembling the returnable object
+  return(
+    windows %>% 
+      select(id, start_date, end_date) %>% 
+      mutate(
+        diagram_obj = diagrams
+      )
+  )
+  
 }
