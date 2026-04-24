@@ -116,12 +116,29 @@ compute_diag_obj = function(datum, max_dim, maxscale) {
     printProgress = FALSE
   )
   # Returns the object, containing barcode
-  return(diag_obj)
+  return(diag_obj$diagram)
 }
 
+##############################################################################
+# Inter-window Wasserstein distance helper function
+##############################################################################
 
+# Takes two persistence diagrams, and returns a dataframe noting the distance
+# for each dimension analyzed
 
-
+wasserstein_by_dimension = function(diag1, diag2, max_dimension){
+  results = data.frame()
+  for(d in 0:max_dimension){
+    results = rbind(results, data.frame(
+      dimension = d,
+      # p alters the type of Wasserstein distance being calculated
+      # the 2-Wasserstein or Earth Mover's distance is standard
+      # penalizes large distances more than smaller ones
+      wasserstein_dist = wasserstein(diag1, diag2, p = 2, dimension = d)
+    ))
+  }
+  results
+}
 
 
 
@@ -225,4 +242,168 @@ barcodes_non_overlapping = function(data, variables, window_size, max_dimension)
       )
   )
   
+}
+
+
+
+
+##############################################################################
+# Computing persistence diagrams for each window, overlapping
+##############################################################################
+#
+# This function is identical to the one above aside from how the windows are computed
+#
+# Computes persistence diagrams for non-overlapping, consecutive windows
+# Takes the following arguments: data - the cleaned dataframe with desired vars
+#                                variables - a string vector of the variables to be analyzed
+#                                window_size - sets the number of months within the window
+#                                max_dim - sets the dimensionality to be analyzed
+# This function will default use all but 1 cores for working
+#
+# It will return a datafram/tibble containing an identifier variable, the start date
+# of the window, and the end date of the interval, and the diagram object 
+
+barcodes_overlapping = function(data, variables, window_size, max_dimension) {
+  
+  # We first subset the data to only include months where all variables have data
+  shared = get_shared_coverage_data(data, variables)
+  
+  
+  # Start indices just increment by 1, adjusted so that there is no windows
+  # with small amounts of data
+  start_indicies = 1:(nrow(shared) - window_size + 1)
+  n_windows = length(start_indicies)
+  
+  
+  windows = tibble(
+    id = 1:n_windows,
+    start_id = start_indicies,
+    # Incrementing the end index
+    end_id = start_indicies + window_size - 1
+  ) %>%
+    mutate(
+      start_date = shared$date[start_id],
+      end_date = shared$date[end_id]
+    )
+  
+  # Now we build a collection of point clouds for each window
+  window_datum = lapply(1:n_windows, function(i){
+    # A matter of slicing the shared data into chunks, and returning
+    # those chunks
+    shared %>% 
+      # Slice the data according to the identifiers we made in the last part
+      slice(windows$start_id[i]:windows$end_id[i]) %>% 
+      select(variables) %>% 
+      # Since the ripsDiag function requires a matrix object (not a tibble/df)
+      as.matrix()
+  })
+  
+  # Now we'll compute the max_scale to set for ripsDiag function
+  # this must be standardized across the computation of every window in order
+  # for a consistently measured Wasserstein distance. To ensure that every
+  # structure is found for every window (we don't miss anything), we'll use the
+  # maximum distance found in any such window between points.
+  max_scale = max(
+    sapply(window_datum, function(window){
+      max(dist(window))
+    })
+  )
+  
+  # Prior to computing each barcode, we'll start up our workers
+  # plan() is a future function which defines the parallel strategy
+  plan(multisession, workers = detectCores() - 1)
+  # Use on.exit() so that the workers are reset once function finishes
+  on.exit(plan(sequential))
+  
+  
+  # with_progress allows for progress tracking
+  with_progress({
+    # Creates progress tracking object, defining how many steps to expect
+    p = progressor(along = window_datum)
+    # Use future_map for parallel processing
+    diagrams = future_map(window_datum, function(window){
+      # Each time a worker finishes, p() is called, advancing progress bar
+      p()
+      compute_diag_obj(window, max_dim = max_dimension, maxscale = max_scale)
+    })
+  })
+  
+  # Now assembling the returnable object
+  return(
+    windows %>% 
+      select(id, start_date, end_date) %>% 
+      mutate(
+        diagram_obj = diagrams
+      )
+  )
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##############################################################################
+# Computing Wasserstein distance for each two windows
+##############################################################################
+
+# Computes Wasserstein distance for consecutive windows
+# Takes the following arguments: diag_df - ouptut dataframe from other function
+#                                max_dim - sets the dimensionality to be analyzed
+# This function will default use all but 1 cores for working
+#
+# It will return a long-style dataframe containg the start and end dates for the
+# two windows being analyzed, and the distance for each dimension
+
+compute_wasserstein = function(barcode_df, max_d) {
+  n_windows = nrow(barcode_df)
+  
+  # Setting up parallel environment
+  plan(multisession, workers = detectCores() - 1)
+  on.exit(plan(sequential))
+  
+  # Setting up progress tracking
+  with_progress({
+    # Telling it what it is keeping track of
+    p = progressor(steps = n_windows - 1)
+    # Filling the results dataframe
+    # We use future_map_dfr, as it works well with the parallelism
+    # and also automatically stacks our results into a dataframe
+    # skips an rbind() call
+    results = future_map_dfr(1:(n_windows-1), function(a){
+      # Keeping track of progress
+      p()
+      # Create a dataframe for the distances
+      # This will output adf with a column for dim
+      # and another col for the distance
+      wasserstein_by_dimension(barcode_df$diagram_obj[[a]],
+                                           barcode_df$diagram_obj[[a+1]],
+                                           max_dimension = max_d) %>% 
+        # Now we'll append the date data
+        mutate(
+          window1_start = barcode_df$start_date[a],
+          window1_end = barcode_df$end_date[a],
+          window2_start = barcode_df$start_date[a+1],
+          window2_end = barcode_df$end_date[a+1]
+        )
+    })
+  })
+  # We do some quick reformatting before returning the object
+  return(
+    results %>% 
+      select(window1_start, window1_end, window2_start, window2_end,
+             dimension, wasserstein_dist)
+  )
 }
