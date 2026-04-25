@@ -369,7 +369,7 @@ data %>%
 
 # As was argued earlier, outliers, as long as they are not artifacts of poor
 # data collection, should remain in our analysis as our use of persistent homology
-# can rely on larger structural shifts.
+# relies on larger structural shifts.
 
 # with that said, we will now conduct an analysis to see if there are data errors
 # that are producing outliers

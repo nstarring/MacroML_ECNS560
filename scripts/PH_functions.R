@@ -30,6 +30,12 @@ library(parallel)
 
 # Progress bars that work with parallel libraries
 library(progressr)
+
+# For plotting time series
+library(dygraphs)
+library(xts)
+
+
 #################################
 
 #################################
@@ -393,8 +399,8 @@ compute_wasserstein = function(barcode_df, max_d) {
       select(window1_start, window1_end, window2_start, window2_end,
              dimension, wasserstein_dist) %>%
       pivot_wider(
-        names_from  = dimension,
-        values_from = wasserstein_dist,
+        names_from   = dimension,
+        values_from  = wasserstein_dist,
         names_prefix = "dim"
       )
   )
@@ -402,3 +408,96 @@ compute_wasserstein = function(barcode_df, max_d) {
 
 # TODO Implement a function that somehow makes visualization easier, or allows for
 # a quick visualization. Also need to figure out how to treat distances
+
+##############################################################################
+# Visualizing wasserstein distances versus recessions using dygraph
+##############################################################################
+#
+# This function takes a dataframe of distances and plots them on a time-series
+# with recessions shaded, so a cursory analysis of the predictive power can
+# be assessed. Function also takes the full data so that recession dates
+# can be obtained.
+#
+# The actual date that will be plotted is the end date of the second window
+# being analyzed. This is done since one wouldn't be able to compute a new dist-
+# ance if it were located anywhere else in the window (since they havent obser
+# ed those times yet)
+# The user can also edit the dimensions they want plotted
+
+plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "dim2")){
+  
+  
+  # Making sure that dist is sorted
+  dist_data = dist_data %>% arrange(window2_end)
+  
+  # Subset to only the requested dimensions
+  cols_to_plot = intersect(dimensions, names(dist_data))
+  
+  # We first convert the distances to an XTS object
+  dists_xts = xts(
+    select(dist_data, all_of(cols_to_plot)),
+    # Order by determines how the dates wil be handled
+    order.by = dist_data$window2_end
+  )
+  
+  # Extracting the recession periods from the big data
+  # rle() will detect sequences of 0s and 1s in the rec
+  # ession data, making it easier to get the start and end
+  # dates of the recession.
+  
+  full_data = full_data %>% arrange(date)
+  runs = rle(full_data$recession)
+  
+  # Here we get the start and end dates for the recessions
+  #
+  # The rle object contains a list of 0 as and 1s, with another list
+  # of lengths, or the length of the period of that number where it was
+  # continuous
+  # Taking the cumsum will add the lengths ontop of eachother so they
+  # will track the ending index
+  end_index   = cumsum(runs$lengths)
+  
+  # end_idx[-length(end_idx)] drops the last element of the end_index
+  # and drops the last index so that it doesn't look for one after that
+  # 
+  # It then increases the list along by 1 (+1), and has 1 for the first 
+  # distance measured
+  start_index = c(1, end_index[-length(end_index)] + 1)
+  
+  
+  recessions = tibble(
+    # Creating a new tibble object with the value (0 or 1) and the start
+    # and end date of that sequence of 0s and 1s
+    is_recession = runs$values,
+    start        = as.Date(full_data$date[start_index]),
+    end          = as.Date(full_data$date[end_index])
+  ) %>%
+    # Now just grabbing the dates for the recessions
+    filter(is_recession == 1)
+  
+  # Now we build the dygraph
+  graph = dygraph(dists_xts, main = "Wasserstein Distance Over Time") %>%
+    dyAxis("y", label = "Wasserstein Distance") %>%
+    dyAxis("x", label = "Date") %>%
+    dyOptions(colors = c("#E63946", "#2196F3", "#4CAF50")[seq_along(cols_to_plot)], 
+              strokeWidth = 2) %>%
+    dyLegend(show = "always", hideOnMouseOut = FALSE) %>%
+    dyRangeSelector() %>%
+    dyHighlight(highlightSeriesOpts = list(strokeWidth = 2))
+  # Add recession shading
+  for(i in 1:nrow(recessions)){
+    graph = graph %>%
+      dyShading(
+        from  = as.character(recessions$start[i]),
+        to    = as.character(recessions$end[i]),
+        color = "#DCDCDC"
+      )
+  }
+  return(graph)
+  
+}
+
+
+
+
+
