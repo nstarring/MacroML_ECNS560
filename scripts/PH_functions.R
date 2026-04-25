@@ -407,3 +407,6 @@ compute_wasserstein = function(barcode_df, max_d) {
              dimension, wasserstein_dist)
   )
 }
+
+# TODO Implement a function that somehow makes visualization easier, or allows for
+# a quick visualization. Also need to figure out how to treat distances
