@@ -216,7 +216,7 @@ barcodes_non_overlapping = function(data, variables, window_size, max_dimension)
   
   # Prior to computing each barcode, we'll start up our workers
   # plan() is a future function which defines the parallel strategy
-  plan(multisession, workers = detectCores() - 1)
+  plan(multisession, workers = detectCores() - 2)
   # Use on.exit() so that the workers are reset once function finishes
   on.exit(plan(sequential))
   
@@ -309,9 +309,12 @@ barcodes_overlapping = function(data, variables, window_size, max_dimension) {
     })
   )
   
+  message(paste0("Number of months in subsetted data: ", nrow(shared), "\n",
+                 "Number of windows to be computed: ", length(start_indicies)))
+  
   # Prior to computing each barcode, we'll start up our workers
   # plan() is a future function which defines the parallel strategy
-  plan(multisession, workers = detectCores() - 1)
+  plan(multisession, workers = detectCores() - 2)
   # Use on.exit() so that the workers are reset once function finishes
   on.exit(plan(sequential))
   
@@ -339,22 +342,6 @@ barcodes_overlapping = function(data, variables, window_size, max_dimension) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ##############################################################################
 # Computing Wasserstein distance for each two windows
 ##############################################################################
@@ -371,7 +358,7 @@ compute_wasserstein = function(barcode_df, max_d) {
   n_windows = nrow(barcode_df)
   
   # Setting up parallel environment
-  plan(multisession, workers = detectCores() - 1)
+  plan(multisession, workers = detectCores() - 2)
   on.exit(plan(sequential))
   
   # Setting up progress tracking
@@ -404,7 +391,12 @@ compute_wasserstein = function(barcode_df, max_d) {
   return(
     results %>% 
       select(window1_start, window1_end, window2_start, window2_end,
-             dimension, wasserstein_dist)
+             dimension, wasserstein_dist) %>%
+      pivot_wider(
+        names_from  = dimension,
+        values_from = wasserstein_dist,
+        names_prefix = "dim"
+      )
   )
 }
 
