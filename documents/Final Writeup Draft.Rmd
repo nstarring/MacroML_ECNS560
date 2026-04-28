@@ -1,0 +1,32 @@
+---
+title: "Final Writeup Draft"
+output: html_document
+date: "2026-04-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+##Motivation Question
+Should Answer: "Choose one of the variables in your cleaned dataset to be the target of prediction.  You should be able to explain why a policymaker, business executive, or another member of the general public might find it useful to be able to predict this outcome variable."
+
+##Motivation Content
+A recession is usually defined as two consecutive quarters of negative GDP growth.  More generally, recessions (or similar events) may be thought of as when the economy goes beyond "slowing down" and begins shrinking in some aspect.  This is, or should be, of interest to almost every economic agent, from policymakers and business leaders to households and individuals -- a recession can have many impacts, but may generally be classified into two categories, either an "asset recession," or a "labor recession."  It is clear that an asset recession is of interest to everyone with assets -- if the value of assets is decreasing, then it is reasonable to expect that there will be massive income effects as these agents "feel poorer" and respond rationally.  If there is a labor recession, then either businesses are likely to struggle to find enough labor for their needs, or households are likely to struggle to provide enough labor to satisfy their needs, and policymakers would like to mitigate both of these consequences.
+
+Existing predictors of recessions are commonly flawed and overfit -- there is a saying that "economists have predicted 11 of the last 5 recessions," and this stems from this overfitting, which commonly takes a single (or a relatively small number) indicator variable and identify some condition which has occurred prior to most or all of the recessions observed in the United States.  Perhaps the most (in)famous of these is the inversion of the yield curve on US treasury notes -- this may occur prior to most or all recessions, but it also occurs many times outside of this interval.  Futher, this is very imprecise as an indicator, and it is commonly referenced as indicating a recession sometime in the next 6-12 months.  This presents some obvious issues, as with regular false positives and such an uncertain timeline, preparatory or preventative actions can not be reasonably taken based on this signalling.
+
+It is not particularly obvious how a good predictor might be constructed; one of the most significant challenges is the lack of data -- not in the sense that we lack historical economic data, but rather that recessions occur somewhat infrequently.  This infrequent occurrence of recessions makes any attempt at predicting them subject to the same flaws in existing indicators: overfitting and false positives.  Despite that flaw, some robustness can be constructed, with out-of-sample testing, and this is a necessary characteristic of the machine learning methods we use.
+
+
+##Methods Question 1
+Should Answer: "Use other variables in your cleaned dataset to predict the outcome variable as best you can.  Follow all the correct ML practices: Set aside a test set; train and predict using one or more ML algorithms; tune your model(s) using appropriate cross-validation, and finally test your performance with the held-out data.  (Don't cheat!!! Really, don't touch the test set until you are done tweaking your model.  If you change your model after seeing how it does in the test set, then you are reporting dishonest performance numbers.)"
+
+##Methods Question 2
+Should Answer: "Explain your methods: What learning method did you use?  What parameters did you tune?  What method did you use for tuning?"
+
+##Methods Content
+
+
+##Results Question
+Should Answer: "Interpret your results: How did you measure performance/success?  How did your model(s) perform?  What do you think limited the performance?  What did you learn in the process?  It may be effective to crease visualizations to accompany your interpretation."
