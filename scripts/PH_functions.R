@@ -406,9 +406,6 @@ compute_wasserstein = function(barcode_df, max_d) {
   )
 }
 
-# TODO Implement a function that somehow makes visualization easier, or allows for
-# a quick visualization. Also need to figure out how to treat distances
-
 ##############################################################################
 # Visualizing wasserstein distances versus recessions using dygraph
 ##############################################################################
@@ -424,7 +421,7 @@ compute_wasserstein = function(barcode_df, max_d) {
 # ed those times yet)
 # The user can also edit the dimensions they want plotted
 
-plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "dim2")){
+plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "dim2", "dim3")){
   
   
   # Making sure that dist is sorted
@@ -435,6 +432,7 @@ plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "d
   
   # We first convert the distances to an XTS object
   dists_xts = xts(
+    # All of ensures that each
     select(dist_data, all_of(cols_to_plot)),
     # Order by determines how the dates wil be handled
     order.by = dist_data$window2_end
@@ -479,8 +477,8 @@ plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "d
   graph = dygraph(dists_xts, main = "Wasserstein Distance Over Time") %>%
     dyAxis("y", label = "Wasserstein Distance") %>%
     dyAxis("x", label = "Date") %>%
-    dyOptions(colors = c("#E63946", "#2196F3", "#4CAF50")[seq_along(cols_to_plot)], 
-              strokeWidth = 2) %>%
+    dyOptions(colors = c("#002052", "#9fa7e8", "#b28c00", "#5e4300")[seq_along(cols_to_plot)], 
+              strokeWidth = 1.5) %>%
     dyLegend(show = "always", hideOnMouseOut = FALSE) %>%
     dyRangeSelector() %>%
     dyHighlight(highlightSeriesOpts = list(strokeWidth = 2))
@@ -494,7 +492,6 @@ plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "d
       )
   }
   return(graph)
-  
 }
 
 
