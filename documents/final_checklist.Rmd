@@ -1,0 +1,44 @@
+---
+title: "ML Motivation"
+author: "Cooper C"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# *Remaining Tasks For Project*
+
+## *Implement Machine Learning/Prediction Element with best practices*
+
+In terms of the final content that we have to make / deliver upon, we need to implement some sort of formal prediction using our data in some way
+
+**I propose that** we choose two ML techniques from class (just to ensure that we're in bounds with the rubric, and then gauge the performance of the model from each specification. These specifications would differ along a couple of lines, and would serve as sort of a robustness check to see if certain window sizes, variable specifications, etc lead to good performance in predicting recessions. Specifically, we'd choose 3 sets of variables to test out (maybe one has 2 core macro measures, another has a larger suite of measures, etc.), and for each of those sets of variables, we'd choose different window sizes, overlappingstatus, etc., and examine the performance results from maybe a lasso and RF (the decision between which will be chosen depending upon how well it fits the stuff we've covered in class). For each of these the ML will be tuned, and then tested on that training/ testing split (this might get hairy if we do specifications without many recessions to predict like if we used the Google Trends or Wikipedia views. All of these results would be compiled in a table.
+
+This would be best done with a nested for loop approach to cover each specification, where for each, it will tune and test a model, in addition to creating a testing and training split (keeping in mind time series limitations)
+
+For each of these windows, the best performing model will be accompanied with a dygraph, following best practice, for each, in addition to a parameter tuning graph if possible too.
+
+### Actual models We're going to tune/fit
+
+TBD
+
+# *Make the write up*
+
+We'll then make the predictive analysis write up. Make a **motivation** section, answering **part a** of the a-d. **Methods** section where it will go over parts **b, c** here, we'll explain why the subsections of variables were chosen, and then why we chose the learning methods, how we split the test set and trains set (THE RUBRIC ALSO SAYS "ONE OR MORE ALGORITHMS"), and then the parameters for each method chosen. In our **results** section, we'll actually plot out the tables that we computed, and note on any trends across the specifications and what not. We'll then extensively cover the shortcomings of our analysis (lack of recessionary data, data limitations when applied to methods, using non-high frequency data, some PH critiques of our process when compared to others)
+
+# *We also need to refine our EDA document to better align with what we we're looking at now*
+
+We need to first get the visualizations
+
+# *What do we do after the write-up*
+
+#### Ensuring Best Practices
+
+**WE NEED TO GET THE VISUALISATION CODE INTO INDIVIDUAL VISUALIZATION SCRIPTS (the "best practices" slides** indicate to, "**Break** programs into short scripts or functions, each of which conducts a single task."
+
+Ensure that only relative file paths are used.
+
+Ensure that file directory is cogent and that there is a README and master script, and outline the general strategy for our process,
