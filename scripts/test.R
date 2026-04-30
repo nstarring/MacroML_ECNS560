@@ -36,13 +36,15 @@ fig_2d = plot_point_cloud_animation(
 fig_2d
 
 fig_2d = plot_point_cloud_animation(
-  data = altered_data, 
+  data = transformed_cleaned_data, 
   variables = c("snp500_avg_close_logret_scaled", "tbill_1yr_diff_scaled"), 
   window_size = 12, 
   start_date = "1990-01-01", 
   end_date = "2010-12-01",
   x_label = "snp500 Average Closing Price, Log Returns, Normalized",
-  y_label = "1 Year T-Bill Yield, Month over Month difference, Normalized"
+  y_label = "1 Year T-Bill Yield, Month over Month difference, Normalized",
+  frames = 275,
+  transi = 250
 )
 
 

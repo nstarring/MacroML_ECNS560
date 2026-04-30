@@ -521,7 +521,7 @@ plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "d
 # 
 
 plot_point_cloud_animation = function(data, variables, window_size, start_date, end_date,
-                                      frames = 200, transi = 100,
+                                      frames = 275, transi = 250,
                                       x_label = NULL, y_label = NULL, z_label = NULL){
   
   # Subset the data into a shared window where there is no NA values
@@ -655,7 +655,8 @@ plot_point_cloud_animation = function(data, variables, window_size, start_date, 
       # the transition parameter adjusts hown smooth one frame goes to the next
       # (makes a time delay), and redraw prevents the plot from remaking each window
       # 2D gets smooth transitions and no redraws
-      animation_opts(frame = frames, transition = transi, redraw = FALSE)
+      animation_opts(frame = frames, transition = transi, redraw = FALSE,
+        easing = "linear")
     
   } else {
     

@@ -59,13 +59,15 @@ To gain more momentum behind our topological approach, it is also of use to see 
 knitr::include_graphics("../output/visualizations/scatter_fedfunds_u3_levels_lag12.png")
 ```
 
-We also examine how the two variables vary together through time by looking at a joint time series between the two.
+We also examine how the two variables vary together through time by looking at a joint time series between the two against shaded recession periods. These plots show a slight relationship, and but certainly nothing that is visibly noteworthy. These plots are interactive and are found in the MacroVars_EDA.R script. They are not included here to reduce cluttering, keeping in mind the rubric.
+
+We also conduct an analysis of extreme values for these two variables and find notable outliers for both, but since both are true, factual data, which can be explained by events at the time, they are retained. Their retention is also necessary when considering our topological approach, as the Wasserstein distances will be driven by large shocks that an outlier causes. This extreme value analysis was then expanded to every variable, and as touched on in the first section of this report, no outliers will be excluded from analysis, as they are all "real" datum, and drive our Wasserstein TDA approach.
 
 ### Analysis of Topological Data
 
-As is outlined in our motivation, our analysis will be examining the "distance" between topological structures from one time window to the next using Wasserstein distances (which are calculated for each dimension of topological structure in a given window). These distances will be the variables that will be used to predict if a month is near an upcoming recession or not.
+As is outlined in the introduction, our analysis will be examining the "distance" between topological structures from one time window to the next using Wasserstein distances (which are calculated for each dimension of topological structure in a given window). These distances will be the variables that will be used to predict if a month is near an upcoming recession or not. A more thorough description of our process is found in the methodology section.
 
-With that said, we select multiple groupings of variables that combine both a good amount of data availability (the data availability for a group will only be as good as its "most missing" member variable), and theoretical relevance to recessions. These included groupings of "monetary movers" (yields on 1 year and 10 year treasuries and the federal funds rate),
+With that said, due to unequal data coverage, computational limitations, and lessons from other similar empirical approaches, we don't and cannot use our full data in our TDA approach (Gidea & Katz, 2018; Ismail et al. 2022). Instead, we select multiple groupings of variables that combine both a good amount of data availability (the data availability for a group will only be as good as its "most missing" member variable), and theoretical relevance to recessions. These included groupings of "monetary movers" (yields on 1 year and 10 year treasuries and the federal funds rate),
 
 ## Visualizations
 
@@ -73,7 +75,7 @@ This plot illustrates what periods we do have data for, and where it is missing.
 
 ### Data Coverage /Missing Values
 
-```{}
+```         
 ```
 
 Additionally, while not addressed by this graph, in "merge_data.R", it is revealed that, withstanding a short window where some macroeconomic variables were not recorded (due to the government shutdown in late 2025), there are no missing values that aren't simply due to a series not going that far back.
@@ -82,19 +84,19 @@ Additionally, while not addressed by this graph, in "merge_data.R", it is reveal
 
 These plots show the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data. In particular, we can see that there are some patterns and regions that this path seems to end up in -- our goal is to identify some repeating area where recessions occur, and use that pattern or spacial region to predict future recessions.
 
-```{}
+```         
 ```
 
 ### Time series for most variables
 
 Here, we can see how several variable change through time, as well as visualizing when the series starts. This plot allows us to get a better idea of the trends of some of our variables of interest, in order to better inform our understanding of the topological objects created through persistent homology.
 
-```{}
+```         
 ```
 
 ### Distributions for Variables of Interest
 
 These plots show the distribution of several variables.
 
-```{}
+```         
 ```
