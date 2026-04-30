@@ -161,16 +161,30 @@ google_call = GET(modify_url(
 # Saving the actual content of that call
 google_content = fromJSON(rawToChar(google_call$content))
 
-# We want to grab the nested data of the interest over time
-google_trends_monthly = google_content$interest_over_time$timeline_data %>% 
-  # The date values are easy enough to grab, while the values are each given
-  # their own dataframes
-  select(date, values) %>% 
-  mutate(
-    # This uses an inline funciton to grab the first value of the dataframe,
-    # our value of interest
-    trend = sapply(values, function(value) value$extracted_value[1])
-  ) %>% 
-  select(date, trend)
-
-write_csv(google_trends_monthly, paste0(file_location, "google_trends_monthly.csv"))
+# This API is very tricky, and has periods where it simply doesnt work
+# with that said, we'll provide some protection against the most common
+# error that is ran into when running this script
+# THIS MAY BE CHEATING, but it will just rely on the already present csv pulled
+# the last succesful call
+if (!is.null(google_content$error)) {
+  
+  message("SerpApi Error Encountered: ", google_content$error)
+  message("Will use existing local CSV.")
+  
+} else {
+  
+  # We want to grab the nested data of the interest over time
+  google_trends_monthly = google_content$interest_over_time$timeline_data %>% 
+    # The date values are easy enough to grab, while the values are each given
+    # their own dataframes
+    select(date, values) %>% 
+    mutate(
+      # This uses an inline funciton to grab the first value of the dataframe,
+      # our value of interest
+      trend = sapply(values, function(value) value$extracted_value[1])
+    ) %>% 
+    select(date, trend)
+  
+  write_csv(google_trends_monthly, paste0(file_location, "google_trends_monthly.csv"))
+  message("Google Trends data obtained succesfully")
+}

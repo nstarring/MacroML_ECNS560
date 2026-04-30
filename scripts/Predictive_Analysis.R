@@ -44,7 +44,7 @@ results_spec_pre_dep = read.csv("data/clean/spec_pre_dep_results_raw.csv")
 results_spec_real_econ = read.csv("data/clean/spec_real_econ_results_raw.csv")
 results_spec_monetary_movers = read.csv("data/clean/spec_monetary_movers_results_raw.csv")
 
-# These results are then piped into dynamic
+# These results are then piped into dynamic kibble plots from the other function
 format_results_table(results_spec_pre_dep, "Pre-Depression Specification Performance")
 format_results_table(results_spec_real_econ, "Real Economy Specification Performance")
 format_results_table(results_spec_monetary_movers, "Monetary Movers Specification Performance")
