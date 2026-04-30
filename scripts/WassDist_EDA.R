@@ -11,8 +11,7 @@
 # Loading required libraries
 # For our custom PH functions and visualization function
 # Setting the wd for the script so it can run the PH functions script
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-source("PH_functions.R")
+source("scripts/PH_functions.R")
 # For interactive, 3d plots (sorry ggplot2)
 
 library(tidyverse)
@@ -20,7 +19,7 @@ library(plotly)
 library(htmlwidgets)
 
 # Loading master data
-master_data = read_csv("../data/clean/transformed_cleaned_data.csv")
+master_data = read_csv("data/clean/transformed_cleaned_data.csv")
 
 # We start by creating a couple of different specifications of variables,
 # Since we are preparing these vars for PH, they are already normalized
@@ -78,7 +77,7 @@ widespread_panic = c("google_recession_trends_diff_scaled",  "snp500_volatility_
 # These point clouds use overlapping windows
 
 # Where the saved plots live
-plot_dir = "../output/interactive_plotly_plots"
+plot_dir = "output/interactive_plotly_plots"
 
 
 ########################################################################

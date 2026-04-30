@@ -39,9 +39,6 @@ library(xts)
 # Sorry ggplot
 library(plotly)
 
-
-#################################
-
 #################################
 #
 # Helper functions
@@ -208,7 +205,7 @@ barcodes_non_overlapping = function(data, variables, window_size, max_dimension)
     shared %>% 
       # Slice the data according to the identifiers we made in the last part
       slice(windows$start_id[i]:windows$end_id[i]) %>% 
-      select(variables) %>% 
+      select(all_of(variables)) %>% 
       # Since the ripsDiag function requires a matrix object (not a tibble/df)
       as.matrix()
   })
@@ -303,7 +300,7 @@ barcodes_overlapping = function(data, variables, window_size, max_dimension) {
     shared %>% 
       # Slice the data according to the identifiers we made in the last part
       slice(windows$start_id[i]:windows$end_id[i]) %>% 
-      select(variables) %>% 
+      select(all_of(variables)) %>% # all of is required since it makes a nasty error otherwise
       # Since the ripsDiag function requires a matrix object (not a tibble/df)
       as.matrix()
   })

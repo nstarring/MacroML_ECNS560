@@ -23,6 +23,8 @@ library(glmnet)
 library(lubridate)
 # To create a nice table on the other side
 library(knitr)
+library(kableExtra)
+library(dplyr)
 
 ##############################################################################
 # Helper function to build a tidymodels rset object from pre-defineed folds
@@ -89,18 +91,18 @@ build_manual_rset = function(train_data, fold_defs){
 # Takes the Wasserstein distances dataframe (already with dim0/dim1, etc. columns),
 # joins on the recession target and builds interactions
 
-prepare_model_data = function(wass_df, master_df){
+prepare_model_data = function(wass_df, master_df, target_col){
   
   # The Wasserstein output already comes wide with dim0, dim1, dim2 cols
   model_df = wass_df %>%
     # Making sure the window2 end is a date object
     mutate(window2_end = as.Date(window2_end)) %>%
-    # Joining with the master dataframe to get the recession within 6 months
-    # indicator (is already contained)
+    # Joining with the master dataframe to get the specific indicator
     left_join(
       master_df %>%
         mutate(date = as.Date(date)) %>%
-        select(date, recession_win_6months),
+        # Dynamically selects the requested target column and renames it to target_var
+        select(date, target_var = all_of(target_col)),
       by = c("window2_end" = "date")
     ) %>%
     # Build interactions between the dimensions
@@ -110,8 +112,7 @@ prepare_model_data = function(wass_df, master_df){
       dim1_x_dim2 = dim1 * dim2
     ) %>%
     # Make target a factor
-    mutate(recession_win_6months = factor(recession_win_6months, 
-                                          levels = c(0, 1))) %>%
+    mutate(target_var = factor(target_var, levels = c(0, 1))) %>%
     # Drop any rows missing asny data (just in case)
     drop_na()
   
@@ -122,7 +123,6 @@ prepare_model_data = function(wass_df, master_df){
 ##############################################################################
 # Helper function to run the lasso method for a single Wasserstein dataset
 ##############################################################################
-
 # Function takes the custom model_df and fold_defs, and 
 run_lasso = function(model_df, fold_defs){
   
@@ -142,9 +142,9 @@ run_lasso = function(model_df, fold_defs){
                    "dim0_x_dim1", "dim0_x_dim2", "dim1_x_dim2")
   
   # Build the recipe
-  rec = recipe(recession_win_6months ~ ., # Setting the predicted var
+  rec = recipe(target_var ~ ., # Setting the predicted var
                # just grabbing the feature cols and the indicator var
-               data = train_df %>% select(feature_cols, recession_win_6months)) %>%
+               data = train_df %>% select(all_of(feature_cols), target_var)) %>%
     # Getting rid of dimensional distances that had no values
     step_zv(all_numeric_predictors()) %>% 
     # Normalizing each factor for lasso
@@ -171,19 +171,33 @@ run_lasso = function(model_df, fold_defs){
   # a big factor when doing just one var in a lasso
   lambda_grid = tibble(penalty = 10^seq(-8, 1, length.out = 80))
   
-  # Tune lambda using custom folds, optimizing ROC-AUC
-  tune_results = tune_grid(
-    wflow,
-    resamples = custom_folds,
-    grid      = lambda_grid,
-    # Settting metric to be roc_auc
-    metrics   = metric_set(roc_auc),
-    # To have the function output
-    control   = control_grid(verbose = F)
-  )
   
-  # Pick the lambda with highest mean AUC across folds
-  best_lambda = select_best(tune_results, metric = "roc_auc")
+  # Tune lambda using custom folds, optimizing ROC-AUC
+  # Due to extreme recession sparsity in non-overlapping windows, dynamic LASSO penalty 
+  # tuning was bypassed in favor of a static penalty parameter where necessary to
+  # prevent cross-validation failure, this allows for this function to continue running,
+  # while also acknowledging what happened (we'll put an astericks in the table when it is computed)
+  tuning_attempt = tryCatch({
+    tune_res = tune_grid(
+      wflow,
+      resamples = custom_folds,
+      grid      = lambda_grid,
+      # Settting metric to be roc_auc
+      metrics   = metric_set(roc_auc),
+      # To have the function output
+      control   = control_grid(verbose = F)
+    )
+    # Pick the lambda with highest mean AUC across folds
+    select_best(tune_res, metric = "roc_auc")
+  }, error = function(e){return(NULL)})
+  
+  if(!is.null(tuning_attempt)){
+    best_lambda = tuning_attempt
+    tuning_failed = F
+  } else {
+    best_lambda = tibble(penalty = 1e-4)
+    tuning_failed = T
+  }
   
   # Refit on full training set with chosen lambda
   final_wflow = finalize_workflow(wflow, best_lambda)
@@ -191,11 +205,11 @@ run_lasso = function(model_df, fold_defs){
   
   # Predict on the test set and compute AUC
   test_preds = predict(final_fit, test_df, type = "prob") %>%
-    bind_cols(test_df %>% select(recession_win_6months))
+    bind_cols(test_df %>% select(target_var))
   
   # Now we put it to thed test data
   test_auc = roc_auc(test_preds,
-                     truth = recession_win_6months,
+                     truth = target_var,
                      .pred_1,
                      # Necessary for the ROC-AUC calc
                      # predicting recessions, not non-recessions
@@ -214,20 +228,21 @@ run_lasso = function(model_df, fold_defs){
   
   
   surv = list(
-    # Checking if each coefficient is zero, or at least negligebly close 
-    # to zero or not
-    dim0_kept = abs(coefs_vec["dim0"]) > 1e-10,
-    dim1_kept = abs(coefs_vec["dim1"]) > 1e-10,
-    dim2_kept = abs(coefs_vec["dim2"]) > 1e-10,
-    dim0_x_dim1_kept = abs(coefs_vec["dim0_x_dim1"]) > 1e-10,
-    dim0_x_dim2_kept = abs(coefs_vec["dim0_x_dim2"]) > 1e-10,
-    dim1_x_dim2_kept = abs(coefs_vec["dim1_x_dim2"]) > 1e-10
+    # isTRUE() forces any NAs from missing coefficients to become FALSE
+    dim0_kept = isTRUE(abs(coefs_vec["dim0"]) > 1e-10),
+    dim1_kept = isTRUE(abs(coefs_vec["dim1"]) > 1e-10),
+    dim2_kept = isTRUE(abs(coefs_vec["dim2"]) > 1e-10),
+    dim0_x_dim1_kept = isTRUE(abs(coefs_vec["dim0_x_dim1"]) > 1e-10),
+    dim0_x_dim2_kept = isTRUE(abs(coefs_vec["dim0_x_dim2"]) > 1e-10),
+    dim1_x_dim2_kept = isTRUE(abs(coefs_vec["dim1_x_dim2"]) > 1e-10)
   )
   
   # Building the output frame that will be appended in the alter function
   tibble(
     test_auc = test_auc,
     best_lambda = best_lambda$penalty,
+    # Adding a flag if the tuning failed due to not enough folds
+    tuning_failed = tuning_failed,
     n_train = nrow(train_df),
     n_test = nrow(test_df),
     # This fancy operator takse the elements inside of surv and makes them into
@@ -252,7 +267,7 @@ run_plain_logistic = function(model_df){
   
   # Plain logistic with all features and interactions, no penalty
   baseline_fit = glm(
-    recession_win_6months ~ dim0 + dim1 + dim2 + dim0_x_dim1 + dim0_x_dim2 + dim1_x_dim2,
+    target_var ~ dim0 + dim1 + dim2 + dim0_x_dim1 + dim0_x_dim2 + dim1_x_dim2,
     data   = train_df,
     # For binary variable
     family = binomial
@@ -264,7 +279,7 @@ run_plain_logistic = function(model_df){
   # Compute AUC using the same convention as LASSO (positive class = 1)
   pred_df = tibble(
     # Pulls the recession labels
-    truth = test_df$recession_win_6months,
+    truth = test_df$target_var,
     # Attaches the predicted probabilities from the 
     pred  = baseline_preds
   )
@@ -391,4 +406,120 @@ run_ml_grid = function(variables, master_df,
   bind_rows(all_results)
 }
 
+##############################################################################
+# Function to evaluate a specification across all time horizons
+##############################################################################
+#
+# This wrapper runs run_ml_grid for 6, 12, and 18 month targets.
+# It then cleans the output, rounds the metrics, collapses the LASSO features
+# into a readable string, and formats it into a nice lookin table
 
+# the ... allows us to pass a buynch of arguments into the function signature
+# while not robust, since it is a function that will be used for a carefully 
+# designed workflow, its not the biggest deal.
+evaluate_horizons_for_spec = function(variables, master_df, spec_name = "Spec 1", ...){
+  
+  # The targets we want to evaluate (all the horzizons we have in our dataframe)
+  targets = c("recession_within_6mo", "recession_within_12mo", "recession_within_18mo")
+  
+  # Initializes an empty vector to store the resulst from each iteration
+  all_horizons = list()
+  counter = 0
+  for(t in targets){
+    counter = counter + 1
+    message(paste0("------------------------BEGINNING TARGET ", counter ,"/", length(targets),": ", t))
+    # Run the grid we built earlier
+    res = run_ml_grid(variables = variables, master_df = master_df, target_col = t, ...)
+    
+    # Assinging the actual value of the t'th element
+    # if we used single bracketrs it would try to convert it to a list
+    all_horizons[[t]] = res
+  }
+  
+  # Bind all the results together
+  final_df = bind_rows(all_horizons)
+  
+  # Clean and format for the final report
+  report_table = final_df %>%
+    mutate(
+      # Make the target column nicer to look at
+      Target = case_when(
+        target_predicted == "recession_within_6mo"  ~ "6 Months",
+        target_predicted == "recession_within_12mo" ~ "12 Months",
+        target_predicted == "recession_within_18mo" ~ "18 Months",
+        TRUE ~ target_predicted
+      ),
+      # Format metrics
+      `Lasso AUC` = paste0(round(test_auc, 3)),
+      `Logit AUC` = paste0(round(plain_logit_auc, 3)),
+      # Format Lambda to scientific notation so it doesn't take up massive space
+      # Flags the lambdas that failed from not tuning
+      Lambda = ifelse(tuning_failed, 
+                      paste0(formatC(best_lambda, format = "e", digits = 2), "*"), 
+                      formatC(best_lambda, format = "e", digits = 2))
+    ) %>%
+    # Collapse the surviving features into a single string, so the reader can just look at
+    # a compiled list instead of across a bunch of cells
+    # Rowise forces for the following operations to only appy to one row at a time
+    rowwise() %>%
+    # Checks each of the dimension columns, and decides to append the keepers to a list
+    # 
+    mutate(
+      `Features Kept` = paste(c(
+        if(dim0_kept) "D0" else NULL,
+        if(dim1_kept) "D1" else NULL,
+        if(dim2_kept) "D2" else NULL,
+        if(dim0_x_dim1_kept) "D0xD1" else NULL,
+        if(dim0_x_dim2_kept) "D0xD2" else NULL,
+        if(dim1_x_dim2_kept) "D1xD2" else NULL
+        # collapse turns a vector of strings and combines them together, spereated
+        # by a comma and a space
+      ), collapse = ", ")
+    ) %>%
+    # Getting out of rowise
+    ungroup() %>%
+    # Clean up empty feature strings (if Lasso killed everything)
+    mutate(`Features Kept` = ifelse(`Features Kept` == "", "None", `Features Kept`)) %>%
+    # Select only the columns needed for the report and clean it up a littl moer  
+    select(Target, Overlap = overlap, Window = window_size, 
+           `Lasso AUC`, `Logit AUC`, Lambda, `Features Kept`) %>%
+    # Sort nicely according to target, overlap and window
+    arrange(Target, desc(Overlap), Window)
+  
+  return(report_table)
+}
+
+##############################################################################
+# Function to tailor output of above function into nice table
+#############################################################################
+format_results_table = function(df, caption_text) {
+  df %>%
+    kable(
+      # Set to be an html element
+      format = "html",
+      caption = caption_text,
+      # center text
+      align = "c",
+      # Allow for our astericks to be there
+      escape = FALSE
+    ) %>%
+    kable_styling(
+      # styling options, kable makes it nice and we can just give it a list
+      bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+      full_width = FALSE,
+      position = "center"
+    ) %>%
+    # Styles the header row
+    # Uses a "professional color pallete"
+    row_spec(0, bold = TRUE, color = "white", background = "#70002e") %>%
+    # Bolds the Target column
+    column_spec(1, bold = TRUE) %>%
+    # Merges repeating values in the target column to void clutter
+    # an option seen often in high tier charts
+    collapse_rows(columns = 1:2, valign = "top") %>%
+    footnote(
+      general = "* Indicates optimal parameter tuning failed due to few recessions in cross-validation folds; a lamabda value of 1e-4 was applied.",
+      general_title = "Note: ",
+      footnote_as_chunk = TRUE
+    )
+}

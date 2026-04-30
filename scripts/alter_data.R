@@ -13,7 +13,6 @@
 library(tidyverse)
 # For imputing consumer sentiment data
 library(zoo)
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # REading data
 nber_recessions = data.frame(
   start = as.Date(c("1929-08-01", "1937-05-01", "1945-02-01", "1948-11-01", 
@@ -26,7 +25,7 @@ nber_recessions = data.frame(
     "2001-11-01", "2009-06-01", "2020-04-01"))
 )
 
-ua_data = read.csv("../data/clean/cleaned_untransformed_data.csv")
+ua_data = read.csv("data/clean/cleaned_untransformed_data.csv")
 
 altered_data = ua_data %>% 
   # Ensuring that datat is sorted by time for the lag() calls
@@ -136,6 +135,6 @@ altered_data = ua_data %>%
 
 
 # Saving the new data
-write.csv(altered_data, file = "../data/clean/transformed_cleaned_data.csv")
+write.csv(altered_data, file = "data/clean/transformed_cleaned_data.csv")
 # Saving as an .rdata
-save(altered_data, file = "../data/clean/transformed_cleaned_data.RData")
+save(altered_data, file = "data/clean/transformed_cleaned_data.RData")
