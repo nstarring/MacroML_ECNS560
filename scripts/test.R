@@ -1,6 +1,8 @@
 
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-transformed_cleaned_data = read_csv("../data/clean/transformed_cleaned_data.csv")
+# This script is sort of a playground for the functions that I've created
+# pay it no attention, tjhough some of the interactive plots are actually pretty
+# fun to play with
+transformed_cleaned_data = read_csv("data/clean/transformed_cleaned_data.csv")
 
 logical_vars = c(
   "snp500_avg_close_logret_scaled",
@@ -20,7 +22,6 @@ distances_test = compute_wasserstein(diag_obj_test, 2)
 
 graph = plot_distances(distances_test, transformed_cleaned_data, dimensions = c("dim0", "dim1", "dim2", "dim3"))
 
-graph %>% htmlwidgets::saveWidget("wasserstein_plot.html")
 
 graph
 

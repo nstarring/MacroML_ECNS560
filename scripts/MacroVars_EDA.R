@@ -32,7 +32,8 @@ skim(full_data)
 
 data = read.csv("data/clean/transformed_cleaned_data.csv") %>% 
   select(date, year, month, rgdp, fedfunds, u3_unemployment,
-    fedfunds_diff, u3_unemployment_diff, recession, recession_win_6months
+    fedfunds_diff, u3_unemployment_diff, recession, recession_within_6mo,
+    recession_within_12mo
   ) %>% 
   filter(year > 1950)
 
@@ -101,11 +102,22 @@ dist_fed_regime = ggplot(data %>% drop_na(recession),
   aes(x = fedfunds, 
     fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
   geom_density(alpha = 0.6) +
-  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#70002E")) +
+  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#A4541C")) +
   theme_minimal() +
   labs(title = "Distribution: Fed Funds Rate by Regime",
     x = "Federal Funds Rate", y = "Density", fill = "Economic State") +
-  theme(legend.position = "bottom")
+  theme(
+    plot.title = element_text(face = "bold", color = "#2c3e50", size = 22),
+    plot.subtitle = element_text(size = 16, color = "#555555", margin = margin(b = 15)),
+    axis.title = element_text(face = "bold", color = "#333333", size = 18),
+    axis.text = element_text(color = "#666666"),
+    panel.grid.major = element_line(color = "#C0C0C0", linewidth = 0.5),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(face = "bold", size = 16),
+    legend.text = element_text(size = 16),
+    plot.margin = margin(20, 20, 20, 20)
+  )
+
 
 print(dist_fed_regime)
 ggsave("output/visualizations/fedfunds_level_by_regime.png", dist_fed_regime, 
@@ -118,11 +130,12 @@ dist_fed_rate_regime = ggplot(data %>% drop_na(recession),
   aes(x = fedfunds_diff, 
     fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
   geom_density(alpha = 0.6) +
-  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#70002E")) +
+  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#A4541C")) +
   theme_minimal() +
   labs(title = "Distribution: Fed Funds Rate Monthly Change by Regime",
     x = "Federal Funds Rate", y = "Density", fill = "Economic State") +
   theme(legend.position = "bottom")
+
 
 # fixed copy-paste bug, was printing dist_fed_regime twice
 print(dist_fed_rate_regime)
@@ -138,7 +151,7 @@ box_fed_diff = ggplot(data %>% drop_na(recession, fedfunds_diff),
   # The boxplot geom
   geom_boxplot(alpha = 0.8) +
   
-  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#70002E")) +
+  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#A4541C")) +
   
   theme_minimal() +
   labs(title = "Distribution: Fed Funds Rate Shifts by Regime",
@@ -166,7 +179,7 @@ dist_u3_regime = ggplot(data %>% drop_na(recession, u3_unemployment),
   aes(x = u3_unemployment, 
     fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
   geom_density(alpha = 0.6) +
-  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#70002E")) +
+  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#A4541C")) +
   theme_minimal() +
   labs(title = "Distribution: U3 Unemployment by Regime",
     x = "U3 Unemployment Rate (%)", y = "Density", fill = "Economic State") +
@@ -185,7 +198,7 @@ dist_u3_rate_regime = ggplot(data %>% drop_na(recession, u3_unemployment_diff),
   aes(x = u3_unemployment_diff, 
     fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
   geom_density(alpha = 0.6) +
-  scale_fill_manual(values = c("Expansion" = "#70002E", "Recession" = "#C0C0C0")) +
+  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#A4541C")) +
   theme_minimal() +
   labs(title = "Distribution: U3 Unemployment Monthly Change by Regime",
     x = "Monthly Change (Percentage Points)", y = "Density", fill = "Economic State") +
@@ -265,8 +278,8 @@ ggsave("output/visualizations/scatter_fedfunds_u3_levels.png", scatter_levels,
 # this indicates that PH may yield interesting results
 
 # We also do the same with a lagged variable
-scatter_levels_lag = ggplot(data %>% drop_na(u3_unemployment, fedfunds, recession_win_6months), 
-  aes(y = fedfunds, x = u3_unemployment, fill = factor(recession_win_6months))) +
+scatter_levels_lag = ggplot(data %>% drop_na(u3_unemployment, fedfunds, recession_within_6mo), 
+  aes(y = fedfunds, x = u3_unemployment, fill = factor(recession_within_6mo))) +
   
   geom_point(shape = 21, color = "white", size = 3, stroke = 0.4, alpha = 0.6) +
   
@@ -296,8 +309,42 @@ print(scatter_levels_lag)
 ggsave("output/visualizations/scatter_fedfunds_u3_levels_lag.png", scatter_levels_lag, 
   width = 7, height = 5, dpi = 150)
 
+# now we do with a year
+scatter_levels_lag12 = ggplot(data %>% drop_na(u3_unemployment, fedfunds, recession_within_12mo), 
+                            aes(y = fedfunds, x = u3_unemployment, fill = factor(recession_within_12mo))) +
+  
+  geom_point(shape = 21, color = "white", size = 3, alpha = 0.4) +
+  
+  scale_fill_manual(values = c("0" = "#C0C0C0", "1" = "#70002E"), 
+                    labels = c("Not", "Upcoming Recession")) +
+  
+  theme_minimal(base_size = 12) +
+  
+  labs(title = "Federal Funds vs. U3 Unemployment",
+       subtitle = "Coloring by whether a recession occurs within 12 months",
+       y = "Federal Funds Rate (%)",
+       x = "U3 Unemployment Rate (%)",
+       fill = "Upcoming Recession\nwithin 12 months:") +
+  
+  theme(
+    plot.title = element_text(face = "bold", color = "#2c3e50", size = 22),
+    plot.subtitle = element_text(size = 16, color = "#555555", margin = margin(b = 15)),
+    axis.title = element_text(face = "bold", color = "#333333", size = 18),
+    axis.text = element_text(color = "#666666"),
+    panel.grid.major = element_line(color = "#C0C0C0", linewidth = 0.5),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(face = "bold", size = 16),
+    legend.text = element_text(size = 16),
+    plot.margin = margin(20, 20, 20, 20)
+  )
+
+print(scatter_levels_lag12)
+ggsave("output/visualizations/scatter_fedfunds_u3_levels_lag12.png", scatter_levels_lag12, 
+       width = 7, height = 5, dpi = 150)
+
 # This gives us more confidence to think recessions, or their precession
 # can be spotted by structural breaks from the existing point cloud
+# we can see that 
 
 
 # now doing the same but for the differenced shocks
@@ -413,7 +460,7 @@ data %>%
 # The large negative federal funds rate decrease occured in May, 1980, which
 # coincides with violatile behavior by the Federal Reserve, namely, in response
 # to a sudden recession, interest rates were greatly cut. Seeing as it is a feature
-# of our data that can help inform our 
+# of our data that can help inform our topological approach, it is kept.
 
 # For our unemployment outliers
 data %>% 

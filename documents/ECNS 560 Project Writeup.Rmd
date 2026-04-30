@@ -1,5 +1,5 @@
 ---
-title: "ECNS 560 Project Writeup"
+title: "ECNS 560 Project EDA"
 output: html_document
 date: "2026-04-09"
 ---
@@ -13,12 +13,6 @@ knitr::opts_chunk$set(
   fig.align = "center" # Centers all your plots automatically
 )
 
-library(tidyverse)
-library(ggplot2)
-library(plotly)
-library(yarrr)
-library(lubridate)
-load("./data/clean/transformed_cleaned_data.RData")
 ```
 
 ## Topic and Motivation
@@ -27,13 +21,15 @@ For this project, we aim to predict recessions, with more accuracy than existing
 
 ## Data and Processing
 
-Our data is retrieved from Yahoo Finance (via the "tidyquant" R package) and from FRED (also via the "tidyquant" R package). This data includes time series for the daily close of major stock indices (S&P 500, DOW, NASDAQ, Russel 2000), common hedges for uncertainty (gold, silver, Case-Schiller Index for real estate), and monthly data on macroeconomic data (U3 and U6 unemployment, GDP, CPI, Federal Funds Rate, Housing Starts, ...). Collectively, these present a multi-faceted image of the economy at a point in time -- in particular, they represent both classical macroeconomic indicators and aggregating signals for the "shadow economy" of asset prices and volatility hedges. Further, the vast majority of our data begins well before 2000, with some stretching back to the beginning of the 20th century.
+Our data is retrieved from Yahoo Finance (via the "tidyquant" R package) and from FRED (also via the "tidyquant" R package). This data includes time series for the daily close of major stock indices (S&P 500, DOW, NASDAQ, Russel 2000), common hedges for uncertainty (gold, silver, Case-Schiller Index for real estate), and monthly data on macroeconomic data (U3 and U6 unemployment, GDP, CPI, Federal Funds Rate, Housing Starts, ...) (A full data appendix is found in the [*clean_data.R*]{.underline} script). Additionally, API sourcing is used to collect two measures of consumer sentiment around recessions; google search trend data for "recession" and wikipedia page visits for "recession", to better obtain a sort of "panic" measure that may be useful in predicting recessions. Collectively, these present a multi-faceted image of the economy at a point in time -- in particular, they represent both classical macroeconomic indicators and aggregating signals for the "shadow economy" of asset prices and volatility hedges. Further, the vast majority of our data begins well before 2000, with some stretching back to the beginning of the 20th century, a visualization attached below will demonstrate that. Recession data is manually collected into a dataframe for easy joining with the larger dataset, the data is from the NBER. Lagged indicators for if a recession starts in the next 6, 12 and 18 months are created from this data and will serve as our target predicted variable in terms of forecasting recessions.
 
-Our primary data of interest is the macroeconomic data -- we are interested in predicting and better understanding recessions, so GDP is one of our most relevant points. GDP is released quarterly, so this would require collapsing much of our data and we would have limited power. Instead, we will primarily use monthly industrial output, which is released monthly, at the same frequency as most of our other macroeconomic data. To match this, we collapse our more granular data (like asset prices) to monthly, creating a monthly mean close price and an interday volatility measure from the variance of these daily closing prices within the month. This collapsed data is combined with the other data, merging on the primary key of year-month, at which point a single primary key for our cleaned dataset is created.
+The vast majority of our data is observed monthly, therefore, we collapse our more granular data (like asset prices) to a monthly level, creating a monthly mean close price and an interday volatility measure from the variance of these daily closing prices within the month. This collapsed data is combined with the other data, merging on the **primary key of year-month**, at which point **a single primary key** for our cleaned dataset is created.
 
-It is also worth noting that there is a "data appendix" in the "clean_data.R" script.
+Additionally, linear imputation was performed on the consumer sentiment variable, which was observed quarterly until the late 1970's, following this though, it too is observed on a monthly basis.
 
-From this, we do some further processing, to create a relative-scaled first-difference dataset. Importantly, this relative-scaled first-difference is computed as a direct first-difference for those values which are already in percentage terms (interest rates or unemployment), and similarly, we also use this direct first-differencing for mean-reverting series, to avoid seeing explosive growth around zero or negligible percent changes for large level-valued changes as it reaches peaks or troughs. Both the transformed and the untransformed data will be useful, but the first difference and relative scaling normalizes and whitens the data, reducing issues of autocorrelation and scale differences between variables.
+It is also worth noting again that there is a "data appendix" in the "clean_data.R" script containing much more detailed descriptions of each variable and its source.
+
+From this, we do some further processing, to create a relative-scaled first-difference dataset. Importantly, this relative-scaled first-difference is computed as a direct first-difference for those values which are already in percentage terms (interest rates or unemployment), and similarly, we also use this direct first-differencing for mean-reverting series, to avoid seeing explosive growth around zero or negligible percent changes for large level-valued changes as it reaches peaks or troughs. Both the transformed and the untransformed data can be useful, but the first difference and relative scaling normalizes and whitens the data, reducing issues of autocorrelation and scale differences between variables. These transformations are also then formally normalized, as that is what persistent homology requires to work properly.
 
 Finally, we append some functions of our variables onto that dataset to allow for a more robust approach when using persistent homology. In particular, we use log-returns for our asset data and other compounding indices, which tend to exhibit exponential growth and would thus distort the spacial "shape" of the data we intend to exploit in such a manner as to dominate any further processes, despite its failure as a dominant indicator of recessions.
 
@@ -41,37 +37,43 @@ In terms of missing data, as is addressed in the visualizations section of this 
 
 To ensure the robustness and validity of the data, an analysis of outliers is also carried out on the data, using the *dlookr* package in R. Using this tool, we discovered that while there are extreme values, they are naturally occurring, as most can be explained by looking at the historical period in which they lay. This analysis also shed light to the variability of some of our variables, with certain ones being composed of \~35% outlier observations. With all that said, we will keep these extreme values, as not only are they "real observations", but also are vital for the shocks that we are looking for in our Persistent homology approach.
 
+These steps were carried out in the direction of the "**data cleaning checklist**", which is applied completely in the "clean_data.R" script, though due to the formalized and clean nature of the data we bring in, the data is quite "clean" already.
+
+### Analysis of Macroeconomic Data
+
+Prior to processing our data into topological structures, to predict recessions it is important to know if we have ground to stand on in the first place. In that, we need to determine if these variables, and their relationships meaningfully differ when the economy is in a recession, or near one.
+
+We do so by choosing two representative variables, that are often named as some of the most important macroeconomic indicators; the federal funds rate and the u3 unemployment rate. We restrict our exploratory data analysis to just these variables since doing every subset of the variables in our dataset would be impractical, and it is not unrealistic to think that the lessons learned from just these variables can be applied to many of the others in our data set owing to the theoretical interconnecitvity of all of our variables.
+
+With each of these two variables, conditional distributions are created, where we look to see if the distribution of either variable is notably different depending on if the month of observation was recessionary or not. For both variables, whether looking at levels or measures of monthly change, the distributions are different in respect to their month's recessionary status, for example,
+
+```{r, echo=FALSE, out.width="70%", fig.align="center", fig.cap="All of the plots are included in the MacroVars_EDA.R script"}
+knitr::include_graphics("../output/visualizations/fedfunds_level_by_regime.png")
+```
+
+These findings give us foundational reasoning to suspect that there are different, detectable regimes with these variables depending on if the economy is in a recession or not, giving credence to the idea that recessionary periods have different topological structures than stable periods do. This implyies that our Wasserstein metric prediction method may have some weight behind it. But again, this is very cursory evidence, and shouldn't be seen as definitive in any sort.
+
+To gain more momentum behind our topological approach, it is also of use to see if the relationships between these two variables changes dependent on recessionary status, as this is ultimately what our topological approach hinges upon. We plot the two variables against eachother, both in levels and rates, to see if their relationship changes dependent on economic stability, and find visual evidence across both levels and rates that there is some change in the relationship, particularly when looking at if the period prior to a recession (as that is ultimately what we want to predict-if we're in a month with a recession upcoming). If there were no regime-effect, we'd see the red dots evenly distrbuted among the grey dots.
+
+```{r, echo=FALSE, out.width="70%", fig.align="center", fig.cap="All of the plots are included in the MacroVars_EDA.R script"}
+knitr::include_graphics("../output/visualizations/scatter_fedfunds_u3_levels_lag12.png")
+```
+
+We also examine how the two variables vary together through time by looking at a joint time series between the two.
+
+### Analysis of Topological Data
+
+As is outlined in our motivation, our analysis will be examining the "distance" between topological structures from one time window to the next using Wasserstein distances (which are calculated for each dimension of topological structure in a given window). These distances will be the variables that will be used to predict if a month is near an upcoming recession or not.
+
+With that said, we select multiple groupings of variables that combine both a good amount of data availability (the data availability for a group will only be as good as its "most missing" member variable), and theoretical relevance to recessions. These included groupings of "monetary movers" (yields on 1 year and 10 year treasuries and the federal funds rate),
+
 ## Visualizations
 
-This plot illustrates what periods we do have data, and where it is missing. As we see here, most of the data is present and once the data series starts, it is almost perfectly complete.
+This plot illustrates what periods we do have data for, and where it is missing. Most of the data is present and once the data series starts, it is essentially perfectly complete, with some sparce missingness around 2025 owing to the "Democrat-led" government shutdown.
 
 ### Data Coverage /Missing Values
 
-```{r}
-# 1. Manually list the columns you want to include
-vars_to_plot <- c("dow_avg_close", "nasdaq_avg_close", "fedfunds", "gold_price", "housing_starts", "tbill_1yr", "u6_unemployment", "case_shiller")
-
-# 2. Reshape and filter
-# Replace 'date_col' with the actual name of your date column
-df_long <- altered_data %>%
-  pivot_longer(
-    cols = all_of(vars_to_plot), 
-    names_to = "variable", 
-    values_to = "value"
-  ) %>%
-  # Remove NAs and blanks so the bars stop/start and the axis fits correctly
-  filter(!is.na(value) & value != "")
-
-# 3. Create the plot
-ggplot(df_long, aes(x = as.Date(date), y = variable)) +
-  # Using geom_tile creates the horizontal bars
-  # width = 31 ensures the monthly tiles touch to form a solid line
-  geom_tile(width = 31, height = 0.7, fill = "steelblue") +
-  # expand = c(0,0) forces the axis to start/end exactly at your data points
-  scale_x_date(expand = c(0, 0), date_labels = "%b %Y") +
-  labs(x = "Time", y = "Variable", title = "Data Availability") +
-  theme_minimal()
-
+```{}
 ```
 
 Additionally, while not addressed by this graph, in "merge_data.R", it is revealed that, withstanding a short window where some macroeconomic variables were not recorded (due to the government shutdown in late 2025), there are no missing values that aren't simply due to a series not going that far back.
@@ -80,148 +82,19 @@ Additionally, while not addressed by this graph, in "merge_data.R", it is reveal
 
 These plots show the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data. In particular, we can see that there are some patterns and regions that this path seems to end up in -- our goal is to identify some repeating area where recessions occur, and use that pattern or spacial region to predict future recessions.
 
-```{r}
-create_3d_plot <- function(data, x_var, y_var, z_var, title_text) {
-  
-  # 1. Prep data: drop specific NAs and ensure Date class
-  plot_data <- data %>%
-    drop_na(all_of(c(x_var, y_var, z_var, "date"))) %>%
-    mutate(date = as.Date(date))
-  
-  # 2. Create numeric scale for the color gradient
-  plot_data$date_num <- as.numeric(plot_data$date)
-  
-  # 3. Build the Time Scale Key (ticks every 5 years)
-  date_range <- range(plot_data$date, na.rm = TRUE)
-  year_sequence <- seq(year(date_range[1]), year(date_range[2]), by = 5)
-  year_numeric <- as.numeric(as.Date(paste0(year_sequence, "-01-01")))
-
-  # 4. Generate Plot
-  plot_ly(plot_data, 
-          x = ~get(x_var), 
-          y = ~get(y_var), 
-          z = ~get(z_var), 
-          type = 'scatter3d', 
-          mode = 'lines',
-          line = list(
-            color = ~date_num, 
-            colorscale = 'Viridis', 
-            width = 5,
-            colorbar = list(
-              title = "Year",
-              tickvals = year_numeric,
-              ticktext = year_sequence
-            )
-          )) %>%
-    layout(
-      title = title_text,
-      scene = list(
-        xaxis = list(title = x_var),
-        yaxis = list(title = y_var),
-        zaxis = list(title = z_var)
-      ),
-      margin = list(l = 0, r = 0, b = 0, t = 40) # Maximize plot area
-    )
-}
-
-# --- GENERATE INDIVIDUAL PLOTS ---
-
-p1 <- create_3d_plot(altered_data, "dow_avg_close", "dow_volatility", "fedfunds", 
-                     "Federal Funds and Dow")
-
-p2 <- create_3d_plot(altered_data, "fedfunds", "case_shiller_logret_scaled", "cpi_logret_scaled", 
-                     "Housing, Interest, and Inflation")
-
-p3 <- create_3d_plot(altered_data, "industrial_production_logret", "u6_unemployment", "tbill_10yr", 
-                     "Labor and Yield Curve")
-
-p4 <- create_3d_plot(altered_data, "gold_price_logret_scaled", "tbill_1yr", "tbill_10yr", 
-                     "Gold and Bonds")
-
-p1
-p2
-p3
-p4
+```{}
 ```
 
 ### Time series for most variables
 
 Here, we can see how several variable change through time, as well as visualizing when the series starts. This plot allows us to get a better idea of the trends of some of our variables of interest, in order to better inform our understanding of the topological objects created through persistent homology.
 
-```{r}
-# "Stacked" time series of returns/percent-changes through time
-# For a few financial assets, Industrial Production or whatever that is,
-# probably also gold and the Case-Schiller index
-
-selected_vars <- c("dow_avg_close_logret_scaled", "snp500_avg_close_logret_scaled", "tbill_1yr_diff_scaled", "tbill_10yr_diff_scaled", "housing_starts_diff_scaled", "u6_unemployment_diff_scaled", "gold_price_logret_scaled", "case_shiller_logret_scaled", "industrial_production_logret_scaled", "rgdp_logret_scaled")
-
-# Reshape to long format
-df_long <- altered_data %>%
-  select(date, all_of(selected_vars)) %>%
-  pivot_longer(
-    cols = -date, 
-    names_to = "variable", 
-    values_to = "value"
-  ) %>%
-  # Ensure the order of the panels matches your list above
-  mutate(variable = factor(variable, levels = selected_vars))
-
-# Create the stacked panel plot
-ggplot(df_long, aes(x = as.Date(date), y = value)) +
-  geom_line() +
-  facet_wrap(~variable, ncol = 1, scales = "free_y", strip.position = "left") +
-  scale_x_date(expand = c(0, 0)) +
-  labs(x = "Time", y = NULL) +
-  theme_minimal() + # Using minimal to clean up grid lines
-  theme(
-    # Makes y-labels (variable names) read horizontally
-    strip.text.y.left = element_text(angle = 0, hjust = 1, size = 8), 
-    strip.background = element_blank(),
-    strip.placement = "outside",
-    # panel.spacing controls the gap between charts
-    panel.spacing = unit(0.8, "lines"),
-    # This stretches the facets vertically relative to width
-    # Lower number = shorter/wider; Higher number = taller
-    aspect.ratio = 0.05
-  )
+```{}
 ```
 
 ### Distributions for Variables of Interest
 
 These plots show the distribution of several variables.
 
-```{r, out.width = "100%"}
-# 1. Identify numeric columns and grab the first 24
-all_numeric_vars <- colnames(altered_data)[sapply(altered_data, is.numeric)]
-first_24_vars <- all_numeric_vars[35:52]
-
-# 2. Filter and reshape to long format
-df_pirate_long <- altered_data %>%
-  select(all_of(first_24_vars)) %>%
-  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
-  # Keep them in the order they appear in your dataframe
-  mutate(variable = factor(variable, levels = first_24_vars))
-
-# 3. Create the 3x8 grid
-ggplot(df_pirate_long, aes(x = 1, y = value)) +
-  # The "Bean" (Density)
-  geom_violin(fill = "steelblue", alpha = 0.3, color = "black", size = 0.3) +
-  # The "Points" (Raw data)
-  geom_jitter(width = 0.1, alpha = 0.1, size = 0.4, color = "black") +
-  # The "Bar" (Mean)
-  stat_summary(fun = "mean", geom = "crossbar", width = 0.5, color = "red", size = 0.5) +
-  # 3x8 Grid
-  facet_wrap(~variable, ncol = 6, scales = "free_y") +
-  theme_minimal() +
-  theme(
-    axis.title.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    strip.text = element_text(size = 7, face = "bold"),
-    panel.spacing = unit(1, "lines")
-  ) +
-  labs(
-    subtitle = "Red bar indicates the mean; density 'beans' show distribution shape",
-    y = "Value"
-  )
+```{}
 ```
