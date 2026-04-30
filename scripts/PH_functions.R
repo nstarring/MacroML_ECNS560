@@ -498,6 +498,192 @@ plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "d
   return(graph)
 }
 
+##############################################################################
+# Visualizing point cloud as it 
+##############################################################################
+#
+# This function creates an interactive 2D or 3D scatter plot with a slider
+# at the bottom that lets the user step through each window. The point cloud
+# evolves as the slider moves, making the use visually see how the
+# topological structure of the chosen variables changes over time (hopefully)
+#
+# Each point represents a month, with a "frame" of the plot representing 
+# a window_size month sized interval's grouping of points. When there is a rec
+# ession within 6 months, the color of the points will change to help the user
+# spot any major structural changes around those times
+#
+# The user has the option to pass a 
+#
+# Pass 2 variables for a 2D scatter, 3 variables for a 3D scatter.
+# Optional: use start_date and end_date (format "YYYY-MM-DD") to restrict the plot.
+
+plot_point_cloud_animation = function(data, variables, window_size, start_date, end_date){
+  
+  # Subset the data into a shared window where there is no NA values
+  shared = get_shared_coverage_data(data, variables)
+  
+  # Ensuring that the date column in our master df is actually date
+  data = data %>% mutate(date = as.Date(date))
+  
+  # Join the recession indicators to the data to be plotted
+  shared = shared %>%
+    left_join(
+      data %>% select(date, in_recession, recession_within_6mo, recession_within_12mo, recession_within_18mo),
+      by = "date"
+    ) %>% 
+    # To really make a cool effect, we can make a heat thing, were the colors will get more intense the closer
+    # to a recession, doing so requires "prioritizing" which indicator the end index month falls under
+    mutate(
+      # Will put priority based upon the proximity to recession
+      heat_status = case_when(
+        in_recession == 1 ~ "In Recession",
+        recession_within_6mo == 1 ~ "Within 6 months",
+        recession_within_12mo == 1 ~ "Within 12 months",
+        recession_within_18mo == 1 ~ "Within 18 months",
+        TRUE ~ "Stable"
+      )
+    )
+  
+  # Subsetting the data further to only look at the desired time window 
+  shared = shared %>% filter(date >= as.Date(start_date))
+  shared = shared %>% filter(date <= as.Date(end_date))
+
+  
+  
+  # This process is very similar to what is done in the calculating
+  # barcodes function. We just create indicies for all the rows in
+  # shared except for the last one (after accounting for window size)
+  start_indicies = 1:(nrow(shared) - window_size + 1)
+  
+  # Total number of windows to be used throughout
+  n_windows = length(start_indicies)
+  
+  # Message to let user know that it might take a bit from here
+  message(paste0("Building ", n_windows, " windows"))
+  
+  
+  # We use lapply(), which takes a list (1:n_windows) and gives us
+  # a list of that same length. We'll iterate through the list of starting
+  # indicies and create "windows" of data for each iteration.
+  frames_df = lapply(1:n_windows, function(i){
+    
+    # Grabs the start and end index for this specific window
+    start_index = i
+    end_index = start_index + window_size - 1
+    
+    # Getting the data from within the window using the variables we just
+    # defined
+    window_rows = shared %>% slice(start_index:end_index)
+    
+    # Determining if the window is within 6 months of a recession or not
+    window_status = shared$heat_status[end_idx]
+    
+    # Now we add that result to every observation within the window so
+    # plotly can correctly identify what color to plot
+    window_rows$color_status = window_status
+    
+    # Making an id variable for plotting uses later (recomended by documentation)
+    window_rows$window_id = i
+    # Getting a label of the date at the end of the window
+    window_rows$window_label = as.character(shared$date[end_index])
+    
+    # Return this window's rows, lapply will collect them into a list
+    return(window_rows)
+  }) %>% 
+    # Stack all the per-window dataframes into one long dataframe
+    bind_rows() %>%
+    
+    # Convert the color_status column into an ordered factor so it works
+    # with plotly (this part took a second to figure out)
+    mutate(color_status = factor(color_status, 
+                                 levels = c("Stable", "Within 18 months", 
+                                            "Within 12 months", 
+                                            "Within 6 months", 
+                                            "In Recession")))
+  
+  # Before plotting, we'll define a color pallete to be used
+  # since writinng it out individually would be bad practice
+  heat_palette = c(
+    "Stable"           = "#5C88DA",
+    "Within 18 months" = "#F4D03F",
+    "Within 12 months" = "#F39C12",
+    "Within 6 months"  = "#D35400",
+    "In Recession"     = "#70002E"
+  )
+  
+  
+  # For 2-d plotting (code is very similar betwen the two)
+  if(length(variables) == 2){
+    
+    # as.formula() converts a string like "~variable_name" (from the arguments) into the formula 
+    # object that plotly expects for column references
+    # The ~ in plotly makes it look for a variable name in the dataframe it was given
+    fig = plot_ly(
+      data = frames_df,
+      x = as.formula(paste0("~", variables[1])),
+      y = as.formula(paste0("~", variables[2])),
+      
+      # frame is what makes the slider work each unique window becomes a
+      # position to be slid over. This is where the labelling we did earlier
+      # comes into play
+      frame = ~window_label,
+      
+      # Grabbing the indicator status and the pallete
+      color = ~color_status,
+      colors = heat_palette,
+      # Denoting what type of point we want and type of plot
+      type = "scatter",
+      mode = "markers",
+      
+      # Marker serves as a style parameter, setting a white border helps with readability
+      marker = list(size = 8, line = list(color = "white", width = 1))
+    ) %>%
+      layout(
+        title = "Point Cloud Through Time",
+        xaxis = list(title = variables[1]),
+        yaxis = list(title = variables[2])
+      )
+    
+  } else {
+    
+    # 3D scatter,same structure but with a z axis added
+    fig = plot_ly(
+      data = frames_df,
+      x = as.formula(paste0("~", variables[1])),
+      y = as.formula(paste0("~", variables[2])),
+      z = as.formula(paste0("~", variables[3])),
+      frame = ~window_label,
+      color = ~color_status,
+      colors = heat_palette,
+      type = "scatter3d",
+      mode = "markers",
+      
+      # Smaller marker size for 3D since 3D plots tend to feel cluttered
+      marker = list(size = 4, line = list(color = "white", width = 0.5))
+    ) %>%
+      layout(
+        title = "Point Cloud Through Time",
+        
+        # 3D axis labels go inside this "scene" parameter for 3d plotting
+        scene = list(
+          xaxis = list(title = variables[1]),
+          yaxis = list(title = variables[2]),
+          zaxis = list(title = variables[3])
+        )
+      )
+  } %>% 
+  # This alters the animation behavior when the slider is toggled with
+  # the frame means that during auto-play (a very cool feature), each frame is shown
+  # for 200ms (a value cited in the documentation)
+  # the transition parameter adjusts hown smooth one frame goes to the next
+  # (makes a time delay), and redraw prevents the plot from remaking each window
+    animation_opts(frame = 200, transition = 100, redraw = FALSE) %>%
+    
+    # Editing the label for when the slider is toggled
+    animation_slider(currentvalue = list(prefix = "Window ending: "))
+  
+  return(fig)
+}
 
 
 

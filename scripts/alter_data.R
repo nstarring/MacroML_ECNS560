@@ -91,7 +91,8 @@ altered_data = ua_data %>%
   ) %>%
   ungroup() %>%
   
-  # Adding the 6-month forward-looking variable
+  # Adding the 6-month and 12-month forward-looking indicator variables
+  # While also ensuring that 
   mutate(
     # We also add a variable indicating if a recession happens in the next 6 months
     recession_win_6months = ifelse(
