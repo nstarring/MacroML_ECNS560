@@ -35,6 +35,10 @@ library(progressr)
 library(dygraphs)
 library(xts)
 
+# For plotting the point clouds over time
+# Sorry ggplot
+library(plotly)
+
 
 #################################
 

@@ -313,7 +313,7 @@ coverage_plot = data_coverage_summary %>%
     panel.grid.major.y = element_blank(), 
     
     # solid frame around the actual graph area
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 1.5),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.25),
     
     plot.title = element_text(face = "bold", size = 18, margin = margin(b = 10)),
     plot.subtitle = element_text(color = "#22333b", margin = margin(b = 20)),
@@ -323,23 +323,23 @@ coverage_plot = data_coverage_summary %>%
   # Timeline bars
   geom_segment(
     aes(x = as.Date(first_obs), xend = as.Date(last_obs), y = nice_name, yend = nice_name),
-    color = "#162960", linewidth = 5) +
+    color = "#A4541C", linewidth = 5, alpha = 0.95) +
   
   # This makes custom ticks at the end of each bar
   geom_segment(
     aes(x = as.Date(first_obs), xend = as.Date(first_obs), 
         y = as.numeric(nice_name) - 0.45, yend = as.numeric(nice_name) + 0.45),
-    color = "#f4b425", linewidth = 2
+    color = "#FFC629", linewidth = 2
   ) +
   
   # Forcing exact boundaries
   scale_x_date(
-    breaks = seq(as.Date("1926-01-01"), as.Date("2026-01-01"), by = "10 years"),
+    breaks = seq(as.Date("1924-01-01"), as.Date("2024-01-01"), by = "10 years"),
     date_labels = "%Y",
-    limits = c(as.Date("1920-01-01"), as.Date("2026-12-31")), 
     expand = expansion(mult = c(0.01, 0.01)) 
   ) +
-  
+  # This zooms in on the window so that we get a cutoff when we want
+  coord_cartesian(xlim = c(as.Date("1920-01-01"), as.Date("2024-01-01"))) +
   labs(
     title = "Data Coverage",
     subtitle = "Temporal Range of Available Variables, Recessions Shaded",
@@ -354,9 +354,9 @@ print(coverage_plot)
 ggsave(
   filename = "output/visualizations/data_coverage_timeline.png", 
   plot = coverage_plot, 
-  width = 14,
-  height = 8,
-  dpi = 300,
+  width = 15,
+  height = 7.5,
+  dpi = 100,
   # So that our tricks with the transparent axis work
   bg = "white"
 )

@@ -4,12 +4,15 @@
 #   - Uses percent change/log returns for certain variables, namely market based ones
 #   - Uses first differences to do the same for percentage variables
 #   - Normalize the data so that it can be used in Persistent Homology
+#   - Imputes values for 
 # This script also appends recession dates, pulled from the NBER 
 # (this data is simply copy and pasted due to the relative simplicity)
 #############################################################################
 
 # Libraries
 library(tidyverse)
+# For imputing consumer sentiment data
+library(zoo)
 
 # REading data
 nber_recessions = data.frame(
@@ -28,6 +31,12 @@ ua_data = read.csv("data/clean/cleaned_untransformed_data.csv")
 altered_data = ua_data %>% 
   # Ensuring that datat is sorted by time for the lag() calls
   arrange(date) %>% 
+  
+  # Using na.approx for linear interpolation between quarterly gaps. Since before
+  # 1978, consumer sentiment was reported quarterly
+  mutate(
+    consumer_sentiment_imputed = na.approx(consumer_sentiment, na.rm = FALSE)
+  ) %>%
   # Creating log_return versions of applicable variables
   mutate(
     across(

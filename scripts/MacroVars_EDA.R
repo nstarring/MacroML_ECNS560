@@ -3,7 +3,7 @@
 # This script is to conduct exploratory data analysis (EDA) on the dataset
 # that has been cleaned and modified in other scripts
 #
-# This script DOES NOT save ALL visualizations. Look at the "visualization.R' file
+# This script saves ALL static visualizations. Look at the "visualization.R' file
 # to find visualizations that are saved in the output directory.
 #
 ##############################################################################
@@ -33,7 +33,7 @@ skim(full_data)
 data = read.csv("data/clean/transformed_cleaned_data.csv") %>% 
   select(date, year, month, rgdp, fedfunds, u3_unemployment,
     fedfunds_diff, u3_unemployment_diff, recession, recession_win_6months
-    ) %>% 
+  ) %>% 
   filter(year > 1950)
 
 # We'll first get an idea of the statistics behind each variable
@@ -49,35 +49,40 @@ summary(data %>% select(-date))
 # This graph isn't the prettiest, but serves a purpose to
 # breifely visualize the data
 u3_dist = ggplot(data, aes(x = u3_unemployment_diff)) +
-  geom_histogram(binwidth = 0.1, fill = "#2F3061", color = "white") +
+  geom_histogram(binwidth = 0.1, fill = "#A4541C", color = "white") +
   theme_minimal() +
   labs(title = "Unconditional Distribution: Monthly change in U3 ", 
     subtitle = "Notice the massive right-tail outliers (Extreme layoffs)",
     x = "Month-over-Month Change (In Percentage Points)", y = "Count")
 
 print(u3_dist)
+ggsave("output/visualizations/u3_unconditional_dist.png", u3_dist, 
+  width = 6, height = 4, dpi = 150)
+
 # The distribution appears semi-normal without taking into account the outliers
 # WE can see very apparent outliers here, we'll use a box and whisker
 # to see the outliers
 
-boxplot(data$u3_unemployment_diff)
+#boxplot(data$u3_unemployment_diff)
 
 # From this, we have quite a few notable outliers, we'll keep that in mind
 
 
 # Unconditional dist for fed funds rate
 ff_dist = ggplot(data, aes(x = fedfunds_diff)) +
-  geom_histogram(binwidth = 0.1, fill = "#2F3061", color = "white") +
+  geom_histogram(binwidth = 0.1, fill = "#A4541C", color = "white") +
   theme_minimal() +
   labs(title = "Unconditional Distribution: Monthly change in Federal Funds Rate", 
     subtitle = "Notice the outliers in both directions",
     x = "Month-over-Month Change (In Percentage Points)", y = "Count")
 
 print(ff_dist)
+ggsave("output/visualizations/fedfunds_unconditional_dist.png", ff_dist, 
+  width = 6, height = 4, dpi = 150)
 
 # This is distributed similarly, though there are notable outliers, now in both
 # directions
-boxplot(data$fedfunds_diff)
+# boxplot(data$fedfunds_diff)
 
 # The -~6 outlier seems off. We'll take a closer look in the outliers section
 range(data$fedfunds_diff, na.rm=T)
@@ -94,15 +99,17 @@ range(data$fedfunds_diff, na.rm=T)
 
 dist_fed_regime = ggplot(data %>% drop_na(recession), 
   aes(x = fedfunds, 
-  fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
+    fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
   geom_density(alpha = 0.6) +
-  scale_fill_manual(values = c("No recession" = "#7D4600", "Recession" = "#A4B0F5")) +
+  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#70002E")) +
   theme_minimal() +
   labs(title = "Distribution: Fed Funds Rate by Regime",
     x = "Federal Funds Rate", y = "Density", fill = "Economic State") +
   theme(legend.position = "bottom")
 
 print(dist_fed_regime)
+ggsave("output/visualizations/fedfunds_level_by_regime.png", dist_fed_regime, 
+  width = 6, height = 4, dpi = 150)
 
 # From this visualization, it seems like the federal funds rate is more
 # consistent in periods without a recession, and has more variability 
@@ -111,13 +118,16 @@ dist_fed_rate_regime = ggplot(data %>% drop_na(recession),
   aes(x = fedfunds_diff, 
     fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
   geom_density(alpha = 0.6) +
-  scale_fill_manual(values = c("No recession" = "#7D4600", "Recession" = "#A4B0F5")) +
+  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#70002E")) +
   theme_minimal() +
   labs(title = "Distribution: Fed Funds Rate Monthly Change by Regime",
     x = "Federal Funds Rate", y = "Density", fill = "Economic State") +
   theme(legend.position = "bottom")
 
-print(dist_fed_regime)
+# fixed copy-paste bug, was printing dist_fed_regime twice
+print(dist_fed_rate_regime)
+ggsave("output/visualizations/fedfunds_diff_by_regime.png", dist_fed_rate_regime, 
+  width = 6, height = 4, dpi = 150)
 
 # Now we'll look a box and whiskers to examine outliers
 box_fed_diff = ggplot(data %>% drop_na(recession, fedfunds_diff), 
@@ -128,28 +138,25 @@ box_fed_diff = ggplot(data %>% drop_na(recession, fedfunds_diff),
   # The boxplot geom
   geom_boxplot(alpha = 0.8) +
   
-  # Colors 
-  scale_fill_manual(values = c("Expansion" = "#7D4600", "Recession" = "#A4B0F5")) +
-  
+  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#70002E")) +
   
   theme_minimal() +
   labs(title = "Distribution: Fed Funds Rate Shifts by Regime",
     x = "Economic State", 
-    y = "Month-over-Month Change")+
+    y = "Month-over-Month Change") +
   # The legend looks awful, we'll lose it for now.
   theme(legend.position = "none",
     plot.title = element_text(face = "bold"))
 
 print(box_fed_diff)
+ggsave("output/visualizations/fedfunds_diff_boxplot.png", box_fed_diff, 
+  width = 6, height = 4, dpi = 150)
 
 # From these visuals, we now know that the changes center negatively for recession,
 # compared to a regular period
 # The changes during a recession indicatee greater variability in that variable
 # under that context.
 # Additionally, our large outlier occurs during a recession
-
-
-
 
 
 #######################################################################
@@ -159,54 +166,58 @@ dist_u3_regime = ggplot(data %>% drop_na(recession, u3_unemployment),
   aes(x = u3_unemployment, 
     fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
   geom_density(alpha = 0.6) +
-  scale_fill_manual(values = c("Expansion" = "#7D4600", "Recession" = "#A4B0F5")) +
+  scale_fill_manual(values = c("Expansion" = "#FFC629", "Recession" = "#70002E")) +
   theme_minimal() +
   labs(title = "Distribution: U3 Unemployment by Regime",
     x = "U3 Unemployment Rate (%)", y = "Density", fill = "Economic State") +
   theme(legend.position = "bottom")
 
 print(dist_u3_regime)
+ggsave("output/visualizations/u3_level_by_regime.png", dist_u3_regime, 
+  width = 6, height = 4, dpi = 150)
+
 # It seems as though there is strong overlap between the two distributions, with
 # recessionary periods tending to have more months with higher unemployment,
 # indicating little predictive power of the level of the variable alone
 
 # We'll now look at the changes in unemployment
 dist_u3_rate_regime = ggplot(data %>% drop_na(recession, u3_unemployment_diff), 
-                             aes(x = u3_unemployment_diff, 
-                                 fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
+  aes(x = u3_unemployment_diff, 
+    fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
   geom_density(alpha = 0.6) +
-  scale_fill_manual(values = c("Expansion" = "#7D4600", "Recession" = "#A4B0F5")) +
+  scale_fill_manual(values = c("Expansion" = "#70002E", "Recession" = "#C0C0C0")) +
   theme_minimal() +
   labs(title = "Distribution: U3 Unemployment Monthly Change by Regime",
-       x = "Monthly Change (Percentage Points)", y = "Density", fill = "Economic State") +
+    x = "Monthly Change (Percentage Points)", y = "Density", fill = "Economic State") +
   theme(legend.position = "bottom")
 
 print(dist_u3_rate_regime)
+ggsave("output/visualizations/u3_diff_by_regime.png", dist_u3_rate_regime, 
+  width = 6, height = 4, dpi = 150)
 
 # This graph is telling; the distributions overlap heavily, but there is a notable 
 # difference in where they are centered, with the recessionary points having positive
 # changes in the unemployment rate, with notable outliers. Similarly to our examination
 # of the federal funds rate, we'll also look at a box and whiskers plot
 box_u3_diff = ggplot(data %>% drop_na(recession, u3_unemployment_diff), 
-                     aes(x = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")), 
-                         y = u3_unemployment_diff, 
-                         fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
+  aes(x = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")), 
+    y = u3_unemployment_diff, 
+    fill = factor(recession, levels = c(0, 1), labels = c("Expansion", "Recession")))) +
   geom_boxplot(alpha = 0.8) +
-  scale_fill_manual(values = c("Expansion" = "#7D4600", "Recession" = "#A4B0F5")) +
+  scale_fill_manual(values = c("Expansion" = "#C0C0C0", "Recession" = "#70002E")) +
   theme_minimal() +
   labs(title = "Distribution: U3 Unemployment Shifts by Regime",
-       x = "Economic State", 
-       y = "Month-over-Month Change (Percentage Points)") +
+    x = "Economic State", 
+    y = "Month-over-Month Change (Percentage Points)") +
   theme(legend.position = "none",
-        plot.title = element_text(face = "bold"))
+    plot.title = element_text(face = "bold"))
 
 print(box_u3_diff)
+ggsave("output/visualizations/u3_diff_boxplot.png", box_u3_diff, 
+  width = 6, height = 4, dpi = 150)
 
 # We get a similar finding here. The distributions are centered differently, with
 # an extreme outlier during a recession.
-
-
-
 
 
 ##########################################################################
@@ -218,16 +229,36 @@ print(box_u3_diff)
 
 # looking at levels first
 scatter_levels = ggplot(data %>% drop_na(u3_unemployment, fedfunds, recession), 
-  aes(y = fedfunds, x = u3_unemployment, color = factor(recession))) +
-  geom_point(alpha = 0.5) +
-  scale_color_manual(values = c("0" = "#f18701", "1" = "#7678ed"), labels = c("Expansion", "Recession")) +
-  theme_minimal() +
-  labs(title = "Fed Funds vs. U3 Unemployment",
-    y = "Federal Funds Rate",
-    x = "U3 Unemployment Rate",
-    color = "Economic State")
+  aes(y = fedfunds, x = u3_unemployment, fill = factor(recession))) +
+  
+  # Shape 21 allows for filled dots with a white outline (stroke)
+  geom_point(shape = 21, color = "white", size = 3, stroke = 0.4, alpha = 0.5) +
+  
+  scale_fill_manual(values = c("0" = "#C0C0C0", "1" = "#70002E"), 
+    labels = c("Expansion", "Recession")) +
+  
+  theme_minimal(base_size = 12) +
+  
+  labs(title = "Federal Funds vs. U3 Unemployment",
+    subtitle = "Assessing geometric relationship across regimes",
+    y = "Federal Funds Rate (%)",
+    x = "U3 Unemployment Rate (%)",
+    fill = "Economic State:") +
+  
+  theme(
+    plot.title = element_text(face = "bold", size = 16, color = "#2c3e50"),
+    plot.subtitle = element_text(size = 12, color = "#555555", margin = margin(b = 15)),
+    axis.title = element_text(face = "bold", color = "#333333"),
+    axis.text = element_text(color = "#666666"),
+    panel.grid.major = element_line(color = "#C0C0C0", linewidth = 0.5),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(face = "bold"),
+    plot.margin = margin(20, 20, 20, 20)
+  )
 
 print(scatter_levels)
+ggsave("output/visualizations/scatter_fedfunds_u3_levels.png", scatter_levels, 
+  width = 7, height = 5, dpi = 150)
 
 # This graph is actually quite interesting, we see clustering of points when we
 # aren't in a recession, but see more volatility/ pattern breaking when in recession
@@ -235,16 +266,35 @@ print(scatter_levels)
 
 # We also do the same with a lagged variable
 scatter_levels_lag = ggplot(data %>% drop_na(u3_unemployment, fedfunds, recession_win_6months), 
-  aes(y = fedfunds, x = u3_unemployment, color = factor(recession_win_6months))) +
-  geom_point(alpha = 0.5) +
-  scale_color_manual(values = c("0" = "#f18701", "1" = "#7678ed"), labels = c("Not", "Upcoming Recession")) +
-  theme_minimal() +
-  labs(title = "Fed Funds vs. U3 Unemployment",
-    y = "Federal Funds Rate",
-    x = "U3 Unemployment Rate",
-    color = "Upcoming Recession within 6 months")
+  aes(y = fedfunds, x = u3_unemployment, fill = factor(recession_win_6months))) +
+  
+  geom_point(shape = 21, color = "white", size = 3, stroke = 0.4, alpha = 0.6) +
+  
+  scale_fill_manual(values = c("0" = "#C0C0C0", "1" = "#70002E"), 
+    labels = c("Not", "Upcoming Recession")) +
+  
+  theme_minimal(base_size = 12) +
+  
+  labs(title = "Federal Funds vs. U3 Unemployment",
+    subtitle = "Coloring by whether a recession occurs within 6 months",
+    y = "Federal Funds Rate (%)",
+    x = "U3 Unemployment Rate (%)",
+    fill = "Upcoming Recession\nwithin 6 months:") +
+  
+  theme(
+    plot.title = element_text(face = "bold", size = 16, color = "#2c3e50"),
+    plot.subtitle = element_text(size = 12, color = "#555555", margin = margin(b = 15)),
+    axis.title = element_text(face = "bold", color = "#333333"),
+    axis.text = element_text(color = "#666666"),
+    panel.grid.major = element_line(color = "#C0C0C0", linewidth = 0.5),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(face = "bold"),
+    plot.margin = margin(20, 20, 20, 20)
+  )
 
 print(scatter_levels_lag)
+ggsave("output/visualizations/scatter_fedfunds_u3_levels_lag.png", scatter_levels_lag, 
+  width = 7, height = 5, dpi = 150)
 
 # This gives us more confidence to think recessions, or their precession
 # can be spotted by structural breaks from the existing point cloud
@@ -254,18 +304,36 @@ print(scatter_levels_lag)
 scatter_diffs = ggplot(data %>% 
     drop_na(u3_unemployment_diff, fedfunds_diff, recession) %>% 
     # Filtering out extreme value to better see center of distribution
-    filter(fedfunds_diff >-3.7 & u3_unemployment_diff < 5)
-  , 
-  aes(x = fedfunds_diff, y = u3_unemployment_diff, color = factor(recession))) +
-  geom_point(alpha = 0.5) +
-  scale_color_manual(values = c("0" = "#f18701", "1" = "#7678ed"), labels = c("Expansion", "Recession")) +
-  theme_minimal() +
-  labs(title = "Fed Funds Shifts vs. Unemployment Shifts, 2 major outliers excluded",
+    filter(fedfunds_diff > -3.7 & u3_unemployment_diff < 5),
+  aes(x = fedfunds_diff, y = u3_unemployment_diff, fill = factor(recession))) +
+  
+  geom_point(shape = 21, color = "white", size = 3, stroke = 0.4, alpha = 0.5) +
+  
+  scale_fill_manual(values = c("0" = "#FFC629", "1" = "#A4541C"), 
+    labels = c("Expansion", "Recession")) +
+  
+  theme_minimal(base_size = 12) +
+  
+  labs(title = "Fed Funds Shifts vs. Unemployment Shifts",
+    subtitle = "Two major outliers excluded for visibility",
     x = "Monthly Change in Fed Funds Rate",
     y = "Monthly Change in U3 Unemployment",
-    color = "Economic State")
+    fill = "Economic State:") +
+  
+  theme(
+    plot.title = element_text(face = "bold", size = 16, color = "#2c3e50"),
+    plot.subtitle = element_text(size = 12, color = "#555555", margin = margin(b = 15)),
+    axis.title = element_text(face = "bold", color = "#333333"),
+    axis.text = element_text(color = "#666666"),
+    panel.grid.major = element_line(color = "#C0C0C0", linewidth = 0.5),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(face = "bold"),
+    plot.margin = margin(20, 20, 20, 20)
+  )
 
 print(scatter_diffs)
+ggsave("output/visualizations/scatter_fedfunds_u3_diffs.png", scatter_diffs, 
+  width = 7, height = 5, dpi = 150)
 
 # We have similar findings here
 
@@ -300,25 +368,25 @@ xts_diffs  = xts(data[, c("fedfunds_diff", "u3_unemployment_diff")], order.by = 
 
 # build the interactive levels plot
 dy_levels = dygraph(xts_levels, main = "Historical Levels: Fed Funds and Unemployment") %>%
-  dySeries("fedfunds", label = "Fed Funds Rate", color = "#ff7d00", strokeWidth = 2) %>%
-  dySeries("u3_unemployment", label = "U3 Unemployment", color = "#15616d", strokeWidth = 2) %>%
+  dySeries("fedfunds", label = "Fed Funds Rate", color = "#A4541C", strokeWidth = 2) %>%
+  dySeries("u3_unemployment", label = "U3 Unemployment", color = "#70002E", strokeWidth = 2) %>%
   dyAxis("y", label = "Rate (%)") %>%
   dyRangeSelector()
 
 # apply the gray recession shading using looping
 for(i in seq_along(rec_starts)) {
-  dy_levels = dy_levels %>% dyShading(from = rec_starts[i], to = rec_ends[i], color = "lightgray")
+  dy_levels = dy_levels %>% dyShading(from = rec_starts[i], to = rec_ends[i], color = "#C0C0C0")
 }
 
 # build the interactive diffs plot
 dy_diffs = dygraph(xts_diffs, main = "Historical Shocks: Rate Changes vs Employment Shifts") %>%
-  dySeries("fedfunds_diff", label = "Fed Funds Shift", color = "#ff7d00", strokeWidth = 2) %>%
-  dySeries("u3_unemployment_diff", label = "U3 Shift", color = "#15616d", strokeWidth = 2) %>%
+  dySeries("fedfunds_diff", label = "Fed Funds Shift", color = "#A4541C", strokeWidth = 2) %>%
+  dySeries("u3_unemployment_diff", label = "U3 Shift", color = "#70002E", strokeWidth = 2) %>%
   dyAxis("y", label = "Month-over-Month Change") %>%
   dyRangeSelector()
 
 for(i in seq_along(rec_starts)) {
-  dy_diffs = dy_diffs %>% dyShading(from = rec_starts[i], to = rec_ends[i], color = "lightgray")
+  dy_diffs = dy_diffs %>% dyShading(from = rec_starts[i], to = rec_ends[i], color = "#C0C0C0")
 }
 
 # view the plots
@@ -358,9 +426,6 @@ data %>%
 # represent genuine, systemic macroeconomic events rather than some sort of data collection errors, 
 # capping them would artificially bias the exact structural signals that Persistent
 # homology is intended to detect.
-
-
-
 
 
 #########################################################################
