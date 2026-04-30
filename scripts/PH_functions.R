@@ -459,7 +459,7 @@ plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "d
   # will track the ending index
   end_index   = cumsum(runs$lengths)
   
-  # end_idx[-length(end_idx)] drops the last element of the end_index
+  # end_index[-length(end_index)] drops the last element of the end_index
   # and drops the last index so that it doesn't look for one after that
   # 
   # It then increases the list along by 1 (+1), and has 1 for the first 
@@ -499,7 +499,7 @@ plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "d
 }
 
 ##############################################################################
-# Visualizing point cloud as it 
+# Visualizing point cloud as it moves through time
 ##############################################################################
 #
 # This function creates an interactive 2D or 3D scatter plot with a slider
@@ -512,12 +512,11 @@ plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "d
 # ession within 6 months, the color of the points will change to help the user
 # spot any major structural changes around those times
 #
-# The user has the option to pass a 
-#
-# Pass 2 variables for a 2D scatter, 3 variables for a 3D scatter.
-# Optional: use start_date and end_date (format "YYYY-MM-DD") to restrict the plot.
+# 
 
-plot_point_cloud_animation = function(data, variables, window_size, start_date, end_date){
+plot_point_cloud_animation = function(data, variables, window_size, start_date, end_date,
+                                      frames = 200, transi = 100,
+                                      x_label = NULL, y_label = NULL, z_label = NULL){
   
   # Subset the data into a shared window where there is no NA values
   shared = get_shared_coverage_data(data, variables)
@@ -528,7 +527,7 @@ plot_point_cloud_animation = function(data, variables, window_size, start_date, 
   # Join the recession indicators to the data to be plotted
   shared = shared %>%
     left_join(
-      data %>% select(date, in_recession, recession_within_6mo, recession_within_12mo, recession_within_18mo),
+      data %>% select(date, recession, recession_within_6mo, recession_within_12mo, recession_within_18mo),
       by = "date"
     ) %>% 
     # To really make a cool effect, we can make a heat thing, were the colors will get more intense the closer
@@ -536,7 +535,7 @@ plot_point_cloud_animation = function(data, variables, window_size, start_date, 
     mutate(
       # Will put priority based upon the proximity to recession
       heat_status = case_when(
-        in_recession == 1 ~ "In Recession",
+        recession == 1 ~ "In Recession",
         recession_within_6mo == 1 ~ "Within 6 months",
         recession_within_12mo == 1 ~ "Within 12 months",
         recession_within_18mo == 1 ~ "Within 18 months",
@@ -561,7 +560,6 @@ plot_point_cloud_animation = function(data, variables, window_size, start_date, 
   # Message to let user know that it might take a bit from here
   message(paste0("Building ", n_windows, " windows"))
   
-  
   # We use lapply(), which takes a list (1:n_windows) and gives us
   # a list of that same length. We'll iterate through the list of starting
   # indicies and create "windows" of data for each iteration.
@@ -575,8 +573,8 @@ plot_point_cloud_animation = function(data, variables, window_size, start_date, 
     # defined
     window_rows = shared %>% slice(start_index:end_index)
     
-    # Determining if the window is within 6 months of a recession or not
-    window_status = shared$heat_status[end_idx]
+    # Determining if the window is near a recession or not
+    window_status = shared$heat_status[end_index]
     
     # Now we add that result to every observation within the window so
     # plotly can correctly identify what color to plot
@@ -585,6 +583,7 @@ plot_point_cloud_animation = function(data, variables, window_size, start_date, 
     # Making an id variable for plotting uses later (recomended by documentation)
     window_rows$window_id = i
     # Getting a label of the date at the end of the window
+    window_label_str = as.character(shared$date[end_index])
     window_rows$window_label = as.character(shared$date[end_index])
     
     # Return this window's rows, lapply will collect them into a list
@@ -618,8 +617,8 @@ plot_point_cloud_animation = function(data, variables, window_size, start_date, 
     # as.formula() converts a string like "~variable_name" (from the arguments) into the formula 
     # object that plotly expects for column references
     # The ~ in plotly makes it look for a variable name in the dataframe it was given
-    fig = plot_ly(
-      data = frames_df,
+    fig = frames_df %>% 
+      plot_ly(
       x = as.formula(paste0("~", variables[1])),
       y = as.formula(paste0("~", variables[2])),
       
@@ -639,48 +638,71 @@ plot_point_cloud_animation = function(data, variables, window_size, start_date, 
       marker = list(size = 8, line = list(color = "white", width = 1))
     ) %>%
       layout(
-        title = "Point Cloud Through Time",
-        xaxis = list(title = variables[1]),
-        yaxis = list(title = variables[2])
-      )
+        title = paste0("Point Cloud Through Time: ", start_date," to ",end_date),
+        xaxis = list(title = ifelse(is.null(x_label), variables[1], x_label)),
+        yaxis = list(title = ifelse(is.null(y_label), variables[2], y_label)),
+        showlegend = FALSE # Kills the legend
+      ) %>% 
+      # This alters the animation behavior when the slider is toggled with
+      # the frame means that during auto-play (a very cool feature), each frame is shown
+      # for 200ms (a value cited in the documentation)
+      # the transition parameter adjusts hown smooth one frame goes to the next
+      # (makes a time delay), and redraw prevents the plot from remaking each window
+      # 2D gets smooth transitions and no redraws
+      animation_opts(frame = frames, transition = transi, redraw = FALSE)
     
   } else {
     
     # 3D scatter,same structure but with a z axis added
     fig = plot_ly(
-      data = frames_df,
-      x = as.formula(paste0("~", variables[1])),
-      y = as.formula(paste0("~", variables[2])),
-      z = as.formula(paste0("~", variables[3])),
-      frame = ~window_label,
-      color = ~color_status,
-      colors = heat_palette,
-      type = "scatter3d",
-      mode = "markers",
-      
-      # Smaller marker size for 3D since 3D plots tend to feel cluttered
-      marker = list(size = 4, line = list(color = "white", width = 0.5))
-    ) %>%
+      data = frames_df) %>% 
+      # We want to add a mesh while keeping the points
+      # essentially just plotting two objects
+      # using the add_ function prefix
+      add_markers(
+        x = as.formula(paste0("~", variables[1])),
+        y = as.formula(paste0("~", variables[2])),
+        z = as.formula(paste0("~", variables[3])),
+        frame = ~window_label,
+        color = ~color_status,
+        colors = heat_palette,
+        marker = list(size = 5, line = list(color = "white", width = 0.5)),
+        showlegend = FALSE
+      ) %>%
+      # Mesh3D
+      add_mesh(
+        x = as.formula(paste0("~", variables[1])),
+        y = as.formula(paste0("~", variables[2])),
+        z = as.formula(paste0("~", variables[3])),
+        frame = ~window_label,
+        # 0 is for a skin that is convex
+        alphahull = 0, 
+        opacity = 0.05,
+        facecolor = "lightgrey",
+        flatshading = TRUE,
+        showlegend = FALSE
+      ) %>%
       layout(
-        title = "Point Cloud Through Time",
-        
-        # 3D axis labels go inside this "scene" parameter for 3d plotting
+        title = paste0("Point Cloud Through Time: ", start_date," to ",end_date),
         scene = list(
-          xaxis = list(title = variables[1]),
-          yaxis = list(title = variables[2]),
-          zaxis = list(title = variables[3])
-        )
-      )
-  } %>% 
+          aspectmode = "cube",
+          xaxis = list(title = ifelse(is.null(x_label), variables[1], x_label), range = c(-3,3)),
+          yaxis = list(title = ifelse(is.null(y_label), variables[2], y_label), range = c(-3,3)),
+          zaxis = list(title = ifelse(is.null(z_label), variables[3], z_label), range = c(-3,3))
+        ),
+        showlegend = FALSE
+      ) %>% 
+      # 3D MUST have 0 transition and redraw = TRUE to work
+      animation_opts(frame = frames, transition = 0, redraw = TRUE)
+  }  
   # This alters the animation behavior when the slider is toggled with
   # the frame means that during auto-play (a very cool feature), each frame is shown
   # for 200ms (a value cited in the documentation)
   # the transition parameter adjusts hown smooth one frame goes to the next
   # (makes a time delay), and redraw prevents the plot from remaking each window
-    animation_opts(frame = 200, transition = 100, redraw = FALSE) %>%
-    
-    # Editing the label for when the slider is toggled
-    animation_slider(currentvalue = list(prefix = "Window ending: "))
+ 
+  # Editing the label for when the slider is toggled, can work for both 2d and 3d plots
+  fig = fig %>% animation_slider(currentvalue = list(prefix = ""))
   
   return(fig)
 }
