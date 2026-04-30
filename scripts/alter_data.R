@@ -13,7 +13,7 @@
 library(tidyverse)
 # For imputing consumer sentiment data
 library(zoo)
-
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # REading data
 nber_recessions = data.frame(
   start = as.Date(c("1929-08-01", "1937-05-01", "1945-02-01", "1948-11-01", 
@@ -26,7 +26,7 @@ nber_recessions = data.frame(
     "2001-11-01", "2009-06-01", "2020-04-01"))
 )
 
-ua_data = read.csv("data/clean/cleaned_untransformed_data.csv")
+ua_data = read.csv("../data/clean/cleaned_untransformed_data.csv")
 
 altered_data = ua_data %>% 
   # Ensuring that datat is sorted by time for the lag() calls
@@ -61,7 +61,7 @@ altered_data = ua_data %>%
         # to drastically large percentage changes
         
         
-        consumer_sentiment, google_recession_trends, wiki_recession_views,
+        consumer_sentiment, consumer_sentiment_imputed, google_recession_trends, wiki_recession_views,
         dow_volatility, snp500_volatility, nasdaq_volatility, russell2000_volatility,
         # Since this variable is mean reverting, and not growing over time
         # (deceptively so)
@@ -92,26 +92,50 @@ altered_data = ua_data %>%
   ungroup() %>%
   
   # Adding the 6-month and 12-month forward-looking indicator variables
-  # While also ensuring that 
+  # While also ensuring that there is no overlap bewteen being in a recession
+  # and the indicator being true
   mutate(
-    # We also add a variable indicating if a recession happens in the next 6 months
-    recession_win_6months = ifelse(
-      # These form a stacked "or" condition where if a recession is within the next 6 obs,
-      # we note it
-      lead(recession, 1) == 1 | 
-        lead(recession, 2) == 1 | 
-        lead(recession, 3) == 1 | 
-        lead(recession, 4) == 1 | 
-        lead(recession, 5) == 1 | 
-        lead(recession, 6) == 1, 
-      1, 0
-    )
+     # 1 to 6 months away (Only triggers if NOT currently in a recession)
+    recession_within_6mo = ifelse(
+      # If not in a recession
+      recession == 0 & (
+        # If one of these is true, the whole if_else is true
+        lead(recession, 1) == 1 | lead(recession, 2) == 1 | 
+          lead(recession, 3) == 1 | lead(recession, 4) == 1 | 
+          lead(recession, 5) == 1 | lead(recession, 6) == 1
+      ), 1, 0),
+    
+    # witin 12 months away (Only triggers if NOT in recession)
+    recession_within_12mo = ifelse(
+      recession == 0 & (
+        lead(recession, 1) == 1 | lead(recession, 2) == 1 | 
+          lead(recession, 3) == 1 | lead(recession, 4) == 1 | 
+          lead(recession, 5) == 1 | lead(recession, 6) == 1 |
+          lead(recession, 7) == 1 | lead(recession, 8) == 1 | 
+          lead(recession, 9) == 1 | lead(recession, 10) == 1 | 
+          lead(recession, 11) == 1 | lead(recession, 12) == 1
+      ), 1, 0),
+    
+    # 18 months
+    # witin 18 months away (Only triggers if NOT in recession)
+    recession_within_18mo = ifelse(
+      recession == 0 & (
+        lead(recession, 1) == 1 | lead(recession, 2) == 1 | 
+          lead(recession, 3) == 1 | lead(recession, 4) == 1 | 
+          lead(recession, 5) == 1 | lead(recession, 6) == 1 |
+          lead(recession, 7) == 1 | lead(recession, 8) == 1 | 
+          lead(recession, 9) == 1 | lead(recession, 10) == 1 | 
+          lead(recession, 11) == 1 | lead(recession, 12) == 1 |
+          lead(recession, 13) == 1 | lead(recession, 14) == 1 | 
+          lead(recession, 15) == 1 | lead(recession, 16) == 1 |
+          lead(recession, 17) == 1 | lead(recession, 18) == 1
+      ), 1, 0)
   ) %>%
   # No idea how this 'X' var got added
   select(-X)
 
 
 # Saving the new data
-write.csv(altered_data, file = "data/clean/transformed_cleaned_data.csv")
+write.csv(altered_data, file = "../data/clean/transformed_cleaned_data.csv")
 # Saving as an .rdata
-save(altered_data, file = "data/clean/transformed_cleaned_data.RData")
+save(altered_data, file = "../data/clean/transformed_cleaned_data.RData")

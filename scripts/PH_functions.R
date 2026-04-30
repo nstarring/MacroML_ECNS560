@@ -425,7 +425,8 @@ compute_wasserstein = function(barcode_df, max_d) {
 # ed those times yet)
 # The user can also edit the dimensions they want plotted
 
-plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "dim2", "dim3")){
+plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "dim2", "dim3"), 
+                          subtitle = NULL){
   
   
   # Making sure that dist is sorted
@@ -477,8 +478,16 @@ plot_distances = function(dist_data, full_data,dimensions = c("dim0", "dim1", "d
     # Now just grabbing the dates for the recessions
     filter(is_recession == 1)
   
+  title_text = if(is.null(subtitle)){
+    "Wasserstein Distance Over Time"
+  } else {
+    # AI generated HTML to add a caption to the graph
+    paste0("Wasserstein Distance Over Time<br/><small style='color:#666;font-weight:normal;'>",
+           subtitle, "</small>")
+  }
+  
   # Now we build the dygraph
-  graph = dygraph(dists_xts, main = "Wasserstein Distance Over Time") %>%
+  graph = dygraph(dists_xts, main = title_text) %>%
     dyAxis("y", label = "Wasserstein Distance") %>%
     dyAxis("x", label = "Date") %>%
     dyOptions(colors = c("#002052", "#9fa7e8", "#b28c00", "#5e4300")[seq_along(cols_to_plot)], 

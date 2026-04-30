@@ -21,7 +21,8 @@ library(tidyverse)
 library(tidymodels)
 library(glmnet)
 library(lubridate)
-
+# To create a nice table on the other side
+library(knitr)
 
 ##############################################################################
 # Helper function to build a tidymodels rset object from pre-defineed folds
@@ -88,7 +89,6 @@ build_manual_rset = function(train_data, fold_defs){
 # Takes the Wasserstein distances dataframe (already with dim0/dim1, etc. columns),
 # joins on the recession target and builds interactions
 
-# The 
 prepare_model_data = function(wass_df, master_df){
   
   # The Wasserstein output already comes wide with dim0, dim1, dim2 cols
@@ -316,11 +316,13 @@ full_coverage_folds = list(
 
 
 run_ml_grid = function(variables, master_df, 
-                          fold_defs = full_coverage_folds,
-                          overlapping_sizes = c(6, 12, 18, 24, 36),
-                          nonoverlapping_sizes = c(8, 12),
-                          max_dim = 2){
-
+                       
+                       target_col = "recession_within_6mo",
+                       fold_defs = full_coverage_folds,
+                       overlapping_sizes = c(6, 12, 18, 24, 36),
+                       nonoverlapping_sizes = c(8, 12),
+                       max_dim = 2){
+  
   
   # Sets then total amount of specifications tested so that
   # we can track the iteration it is on/how much it has left
@@ -356,7 +358,7 @@ run_ml_grid = function(variables, master_df,
       wass = compute_wasserstein(diag_obj, max_dim)
       
       # Build modeling dataset with target and interactions
-      model_df = prepare_model_data(wass, master_df)
+      model_df = prepare_model_data(wass, master_df, target_col)
       
       # Run Lasso
       message("Running Lasso")
@@ -371,10 +373,11 @@ run_ml_grid = function(variables, master_df,
         mutate(
           overlap = overlap_type,
           window_size = ws,
-          plain_logit_auc = baseline_auc
+          plain_logit_auc = baseline_auc,
+          target_predicted = target_col # Helps track which target was used in final table
         ) %>%
         # Everything() grabs all the other variables and places tham at the end
-        select(overlap, window_size, test_auc, plain_logit_auc, everything())
+        select(target_predicted, overlap, window_size, test_auc, plain_logit_auc, everything())
       
       # Assigning the new row to the big list we started at the beginning
       all_results[[spec_counter]] = result_row
@@ -387,3 +390,5 @@ run_ml_grid = function(variables, master_df,
   # Binds the list of rows into a dataframe
   bind_rows(all_results)
 }
+
+
