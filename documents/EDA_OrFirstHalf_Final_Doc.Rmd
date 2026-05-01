@@ -33,7 +33,11 @@ From this, we do some further processing, to create a relative-scaled first-diff
 
 Finally, we append some functions of our variables onto that dataset to allow for a more robust approach when using persistent homology. In particular, we use log-returns for our asset data and other compounding indices, which tend to exhibit exponential growth and would thus distort the spacial "shape" of the data we intend to exploit in such a manner as to dominate any further processes, despite its failure as a dominant indicator of recessions.
 
-In terms of missing data, as is addressed in the visualizations section of this report, the only missingness of concern is the lack of duration that some features have data for. Aside from that, missing values are of little concern at this stage, keeping in mind our temporal restrictions.
+In terms of missing data, the only missingness of concern is the lack of duration that some features have data for. Aside from that, missing values are of little concern at this stage, keeping in mind our temporal restrictions. For a better demonstration of the ranges of our variables of interest, observe the following chart.
+
+```{r, echo=FALSE, out.width="110%", fig.align="center", fig.cap="All of the plots are included in the MacroVars_EDA.R script"}
+knitr::include_graphics("../output/visualizations/data_coverage_timeline.png")
+```
 
 To ensure the robustness and validity of the data, an analysis of outliers is also carried out on the data, using the *dlookr* package in R. Using this tool, we discovered that while there are extreme values, they are naturally occurring, as most can be explained by looking at the historical period in which they lay. This analysis also shed light to the variability of some of our variables, with certain ones being composed of \~35% outlier observations. With all that said, we will keep these extreme values, as not only are they "real observations", but also are vital for the shocks that we are looking for in our Persistent homology approach.
 
@@ -67,11 +71,11 @@ We also conduct an analysis of extreme values for these two variables and find n
 
 As is outlined in the introduction, our analysis will be examining the "distance" between topological structures from one time window to the next using Wasserstein distances (which are calculated for each dimension of topological structure in a given window). These distances will be the variables that will be used to predict if a month is near an upcoming recession or not. A more thorough description of our process is found in the methodology section.
 
-With that said, due to unequal data coverage, computational limitations, and lessons from other similar empirical approaches, we don't and cannot use our full data in our TDA approach (Gidea & Katz, 2018; Ismail et al. 2022). Instead, we select multiple groupings of variables that combine both a good amount of data availability (the data availability for a group will only be as good as its "most missing" member variable), and theoretical relevance to recessions. These included groupings of "monetary movers" (unemployment, inflation, fed funds), "widespread panic" (google recession trends, snp500 volatility, u6 unemployment), "real economy" (consumer sentiment, industrial production, u3 unemployment, housing starts), and others, which are all analyzed equally in the WassDist_DEA.R script.
+With that said, due to unequal data coverage, computational limitations, and lessons from other similar empirical approaches, we don't and cannot use our full data in our TDA approach (Gidea & Katz, 2018; Ismail et al. 2022). Instead, we select multiple groupings of variables that combine both a good amount of data availability (the data availability for a group will only be as good as its "most missing" member variable), and theoretical relevance to recessions. These included groupings of "monetary movers" (unemployment, inflation, fed funds), "widespread panic" (Google recession trends, S&P500 volatility, U6 unemployment), "real economy" (consumer sentiment, industrial production, u3 unemployment, housing starts), and others, which are all analyzed equally in the WassDist_DEA.R script.
 
 To gain a fundamental understanding of the structure of the relationships between the variables, a function wass created that plots either 2 or 3 variable overlapping temporal windows of 12 months as time progresses, with coloring to indicate if the economy is approaching a recession or is in one. For a 2d example, consider the following subsection of our "real economy" collection of variables discussed earlier.
 
-::::: {style="display: flex; align-items: center;"}
+::: {style="display: flex; align-items: center;"}
 ::: {style="width: 80%;"}
 ```{r, echo=FALSE, message=FALSE, warning=FALSE,fig.cap="Press the play button or drag the slider to see the point cloud change over time"}
 library(plotly)
@@ -93,11 +97,11 @@ my_interactive_plot %>%
 knitr::include_graphics("../output/visualizations/key.jpg")
 ```
 :::
-:::::
+:::
 
 Most of these 2d plots had the same findings, in that it is difficult to say that structural divergence happens more frequently in the lead up to recessions. For some specifications, the structure of the data seemed to change leading to a recession, but it is difficult to know if that is just random divergence. Three dimensional plots were employed alongside the 2d plots, testing for the same structural divergence in anticipation of a recession. For an example, we can model all of our "monetary mover" variables over time.
 
-::::: {style="display: flex; align-items: center;"}
+::: {style="display: flex; align-items: center;"}
 ::: {style="width: 80%;"}
 ```{r, echo=FALSE, message=FALSE, warning=FALSE,fig.cap="Press the play button or drag the slider to see the point cloud change over time"}
 library(plotly)
@@ -114,11 +118,58 @@ my_interactive_plot
 knitr::include_graphics("../output/visualizations/key.jpg")
 ```
 :::
-:::::
+:::
+
 It is worth noting that the mesh covering the dots is not indicative of any sort of exact topological structure that will be uncovered when using persistent homology, and serves more as a visual aid.
 
 Again, we don't find any sort of silver bullet here indicating that our approach may work. With that said, persistent homology may be better able to capture relationships within data, relationships that the human eye isn't keen to detect given a 3d graph, even with the mesh applied over the variables.
 
-Following the point cloud maps, a different methodology is tried to get a foundational grasp as to the promise of the Wasserstein-distance TDA approach. Here, we calculate the wasserstein distance for a set window size, and plot it against recessions. Here is an example from the subset of variables that were observed prior to the great depression. Again, these are wasserstein distances, a measure of "how hard" it would be to reconstruct one topological structure from another (this is an imprecise defintion). Here the window size is 18 months.
+Following the point cloud maps, a different methodology is tried to get a foundational grasp as to the promise of the Wasserstein-distance TDA approach. Here, we calculate the wasserstein distance for a set window size, and plot it against recessions. Here is an example from the subset of variables that were observed prior to the great depression. Again, these are wasserstein distances, a measure of "how hard" it would be to reconstruct one topological structure from another (this is an imprecise definition). Here the window size is 18 months.
 
+```{r, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%", fig.height=5, fig.cap="Narrow the window and drag the slider to see the change through time."}
+library(dygraphs)
+library(xts)
+library(dplyr)
 
+source("../scripts/PH_functions.R")
+
+# 1. Strip the base R 'X' column and force the Date object
+wass_data = read.csv("../data/clean/pre_depression_wasses.csv") %>%
+  select(-X) %>%
+  mutate(window2_end = as.Date(window2_end))
+
+full_data = read.csv("../data/clean/transformed_cleaned_data.csv") %>%
+  mutate(date = as.Date(date))
+
+# 2. Build and print the interactive plot
+plot_distances(
+  dist_data = wass_data,
+  full_data = full_data,
+  dimensions = c("dim0"),
+  subtitle = "0th dimension Wasserstein"
+)
+plot_distances(
+  dist_data = wass_data,
+  full_data = full_data,
+  dimensions = c("dim1", "dim2"),
+  subtitle = "1st and 2nd dimension Wasserstein"
+)
+```
+
+For each of the groupings of variables, plots like this were assembled. The results from these plots are more uplifting than the point clouds, but still need to be approached with caution, for example, when looking at the bottom plot, showing the 1st dimension Wasserstein over time note how there are some spikes that occur quite close to recessions (1948, 1953, 1990, etc.) but it is difficult to argue that these aren't just well-placed noise-that is what our prediction methods will attempt to tease out.
+
+With this in mind, after weighing the predictive power evident in this type of time series plot, in conjunction with data availability constraints, we choose 3 specifications to focus our predictive analysis on.
+
+Namely, we choose the following (where all variables are differenced and scaled, as outlined in the *alter_data.R* script.
+
+-   **The pre-depression variables**
+
+    -   Gold price, Industrial Production, S&P 500 Average Close, S&P 500 Volatility
+
+-   **The "real economy" variables**
+
+    -   Consumer Sentiment, Industrial Production, U3 Unemployment, Housing Starts
+
+-   **The "monetary movers" variables**
+
+    -   U3 Unemployment, Inflation, Federal Funds Rate

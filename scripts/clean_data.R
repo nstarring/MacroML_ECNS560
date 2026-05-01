@@ -315,9 +315,10 @@ coverage_plot = data_coverage_summary %>%
     # solid frame around the actual graph area
     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.25),
     
-    plot.title = element_text(face = "bold", size = 18, margin = margin(b = 10)),
-    plot.subtitle = element_text(color = "#22333b", margin = margin(b = 20)),
-    axis.text.y = element_text(face = "bold", color = "black")
+    plot.title = element_text(face = "bold", size = 24, margin = margin(b = 10), color = "#2c3e50"),
+    plot.subtitle = element_text(color = "#333333", margin = margin(b = 20), size = 18),
+    axis.text.y = element_text(face = "bold", color = "black",size = 14),
+    axis.text.x = element_text(face = "bold", color = "black",size = 14)
   ) +
   
   # Timeline bars
