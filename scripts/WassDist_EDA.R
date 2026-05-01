@@ -382,7 +382,7 @@ panic_3d
 pre_depression_barcodes = barcodes_overlapping(
   data = master_data,
   variables = pre_depression_vars,
-  window_size  = 24,
+  window_size  = 18,
   max_dimension = 2
 )
 pre_depression_wass = compute_wasserstein(

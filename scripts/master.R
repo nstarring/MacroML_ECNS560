@@ -52,4 +52,4 @@ source("scripts/Predictive_Analysis.R")
 # To regenerate all report visuals, uncomment and run the lines below:
 #
 # source("scripts/MacroVars_EDA.R")
-# source("scripts/visualizations.R")
+# source("scripts/WassDist_EDA.R")
