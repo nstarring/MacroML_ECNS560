@@ -25,4 +25,4 @@ Data is pre-processed using relative-scaled first-differencing and normalization
 
 *   **Best Specification:** The "Real Economy" models demonstrated the highest predictive power.
 *   **Performance:** Achieved a peak **AUC of 0.8** in out-of-sample testing (post-2000 data) for 12-month recession forecasts.  This is likely due to chance and the number of model variants tested.
-*   **Feature Importance:** Lasso selection consistently prioritized $D_0$ (connectivity) and $D_1$ (cycles), suggesting that the emergence of "holes" in the economic manifold is a more reliable predictor than higher-dimensional voids ($D_2$).
+*   **Feature Importance:** Lasso selection consistently prioritized $D_0$ (connectivity) and $D_1$ (cycles), suggesting that the emergence of "holes" in the economic manifold is a more reliable predictor than higher-dimensional voids ($D_2$).  This may be due to the density of the data not permitting a strong identification of voids (or the lack thereof), moreso than the true relevance of the predictors.
