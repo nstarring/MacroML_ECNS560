@@ -128,8 +128,45 @@ These plots show the distribution of several variables.
 ```
 # Results
 
-## Analysis of Topological Data
-
 As is outlined in the introduction, our analysis examines the distance between topological structures from one time window to the next using the Wasserstein metric (which are calculated for each dimension of topological structure in a given window). These distances will be the variables that will be used to predict if a month is near an upcoming recession or not. A more thorough description of our process is found in the methodology section.
 
-With that said, due to unequal data coverage, computational limitations, and lessons from other similar empirical approaches, we do not and cannot use our full data in our TDA approach (Gidea & Katz, 2018; Ismail et al. 2022). Instead, we select multiple groupings of variables that combine both a good amount of data availability (the data availability for a group will only be as good as its "most missing" member variable), and theoretical relevance to recessions. These included groupings of "monetary movers" (yields on 1 year and 10 year treasuries and the federal funds rate), "pre-depression specification" (those variables for which the )
+With that said, due to unequal data coverage, computational limitations, and lessons from other similar empirical approaches, we do not and cannot use our full data in our TDA approach (Gidea & Katz, 2018; Ismail et al. 2022). Instead, we select multiple groupings of variables that combine both a good amount of data availability (the data availability for a group will only be as good as its "most missing" member variable), and theoretical relevance to recessions. These included groupings of "monetary movers" (yields on 1 year and 10 year treasuries and the federal funds rate), "pre-depression" (those variables for which the data reaches back at least to the era of the Great Depression), and "real economy" (those variables which measure characteristics of real assets, their values, and their construction).
+
+```{r}
+library(knitr)
+library(kableExtra)
+source("../scripts/prediction_functions.R") 
+
+results_spec_pre_dep = read.csv("../data/clean/spec_pre_dep_results_raw.csv")
+results_spec_real_econ = read.csv("../data/clean/spec_real_econ_results_raw.csv")
+results_spec_monetary_movers = read.csv("../data/clean/spec_monetary_movers_results_raw.csv")
+```
+
+In particular, we use the zero-th, first, and second dimensional Wasserstein metrics, with their pairwise interactions, as predictor variables in a logit and in a lasso regression.  These models are trained on the pre-2000 data, and AUC metrics are reported for in the test data after 2000.
+
+The results for the monetary movers specification are below.
+```{r}
+format_results_table(results_spec_monetary_movers, "Monetary Movers Specification Performance")
+```
+The first column describes the goal prediction metric: whether there will be a recession in the next 6, 12, or 18 months.  The second and third columns provide the specification for how the Wasserstein metric was computed -- whether the windows were overlapping, and how long the windows were.  To clarify, if the windows overlap, then we may see consecutive windows as months 1-12 and 2-13, and if not, they might look like 1-12 and 13-24.  Following this, we have the out-of-sample lasso and logit model AUC values, and some model specifications: the $\lambda$ value for the lasso regression and the features which were not compressed to zero in the lasso regression.  These features indicate the Wasserstein metric values at zero dimensions (connectivity), one dimension (holes), and two dimensions (voids), and the interactions of these time series.  
+
+It is of particular note that very few of these specifications exceed 0.5 in the AUC computation.  This, as touched on in the introduction, indicates that they perform worse-than-random on the out-of-sample data.  There are a couple values which do exceed 0.5, the largest of which is 0.595 for an 18 month overlapping window, attempting to predict a recession 6 months out using a lasso regression.  Extending this window length to 36 months also produces an AUC greater than 0.5, but at 0.565, less than that of the 18 month window.  
+
+Similar tables for the pre-depression and real economy specifications are below.
+```{r}
+format_results_table(results_spec_pre_dep, "Pre-Depression Specification Performance")
+format_results_table(results_spec_real_econ, "Real Economy Specification Performance")
+```
+Much as in the monetary movers specification, there are several values in each of these below 0.5, so performing worse-than-random.  However, there are far fewer of these, relative to the number of estimates, and there are several more extreme AUC values, approaching one.  In particular, the 8 month non-overlapping windows generated an AUC of about 0.8 when predicting recessions 12 months out with the real economy specification for the model.
+
+As a broad category, the real economy seems to be the most reliable, with (by inspection) the largest proportion of models with better-than-random performance in the test set.  This seems reasonable, since a recession is defined based on GDP, which most closely fits in this "real economy" category, so the structure and manifold on which these parameters move is more relevant.  This real economy specification also seems to have the least number of models substantially under 0.5, again supporting this hypothesis of it performing the best.
+
+It is also worth noting which variables were most persistent in the models, that is, which variables were least commonly removed by the lasso regression. D0 and D1 were the most common of these (by inspection) followed by interactions with and between these as well as D2.  This suggests that the second dimension, looking for voids is least important, while connectivity and holes are relatively more important.  This, if we attempt to interpret it, likely suggests that a cyclical economy or two distinct behaviors of the economy is either (1) more important of an observation than persistant voids, or (2) we lacked sufficient data to identify persistant voids -- this could have either been longer histories (where we would then be lacking enough folds for robust cross validation) or data with a greater time-density.
+
+# Conclusion
+
+
+
+
+
+
