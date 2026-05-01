@@ -9,6 +9,7 @@ output:
     toc_depth: 3
     theme: lumen
 ---
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   echo = FALSE,      # Hide code
@@ -23,21 +24,23 @@ knitr::opts_chunk$set(
 
 ### Topic and Motivation
 
-For this project, we aim to better understand recessions and develop a potential indicator. A recession is usually defined as two consecutive quarters of negative GDP growth. More generally, recessions (or similar events) may be thought of as when the economy goes beyond "slowing down" and begins shrinking in some aspect. This is, or should be, of interest to almost every economic agent, from policymakers and business leaders to households and individuals. A recession can have many impacts, but may generally be classified into two categories: either a "financial crisis" or a "labor recession." It is clear that a financial crisis is of interest to everyone with assets—if the value of assets is decreasing, then it is reasonable to expect that there will be massive income effects as these agents "feel poorer" and respond rationally. If there is a labor recession, households are likely to struggle to provide enough labor to satisfy their needs, and policymakers would like to mitigate this.
+For this project, we aim to better understand recessions and develop a potential indicator. A recession is usually defined as two consecutive quarters of negative GDP growth. More generally, recessions (or similar events) may be thought of as when the economy goes beyond "slowing down" and begins shrinking in some aspect. This is, or should be, of interest to almost every economic agent, from policymakers and business leaders to households and individuals. A recession can have many impacts, but may generally be classified into two categories: either a "financial crisis" or a "labor recession." It is clear that a financial crisis is of interest to everyone with assets---if the value of assets is decreasing, then it is reasonable to expect that there will be massive income effects as these agents "feel poorer" and respond rationally. If there is a labor recession, households are likely to struggle to provide enough labor to satisfy their needs, and policymakers would like to mitigate this.
 
-Existing predictors of recessions are commonly flawed and overfit—there is a saying that "economists have predicted 11 of the last 5 recessions." This stems from identifying some condition which has occurred prior to most or all of the recessions observed in the United States based on a single (or a relatively small number) indicator variable. Perhaps the most famous of these is the inversion of the yield curve on US treasury notes. While this may occur prior to most recessions, it is a sentiment-based indicator rather than a structural indicator. Further, it is imprecise, commonly referenced as indicating a recession sometime in the next 6–12 months. This presents obvious issues, as regular false positives and an uncertain timeline prevent preparatory or preventative actions from being reasonably taken.
+Existing predictors of recessions are commonly flawed and overfit---there is a saying that "economists have predicted 11 of the last 5 recessions." This stems from identifying some condition which has occurred prior to most or all of the recessions observed in the United States based on a single (or a relatively small number) indicator variable. Perhaps the most famous of these is the inversion of the yield curve on US treasury notes. While this may occur prior to most recessions, it is a sentiment-based indicator rather than a structural indicator. Further, it is imprecise, commonly referenced as indicating a recession sometime in the next 6--12 months. This presents obvious issues, as regular false positives and an uncertain timeline prevent preparatory or preventative actions from being reasonably taken.
 
-The metric we propose reduces this dependence on so little information. It is not particularly obvious how a good predictor might be constructed; one of the most significant challenges is the lack of data, as recessions occur somewhat infrequently. This makes any attempt at prediction subject to overfitting, though we aim to construct robustness via out-of-sample testing—a necessary characteristic of the machine learning methods we use.
+The metric we propose reduces this dependence on so little information. It is not particularly obvious how a good predictor might be constructed; one of the most significant challenges is the lack of data, as recessions occur somewhat infrequently. This makes any attempt at prediction subject to overfitting, though we aim to construct robustness via out-of-sample testing---a necessary characteristic of the machine learning methods we use.
 
 ### Principal Methodology: PH and Wasserstein Distance
 
 We attempt to understand whether a recession can be signaled by a change in the "velocity" of the economy, and we define this velocity as the Wasserstein distance between two consecutive states. To achieve this, we use two techniques not yet assimilated into mainstream empirical economics: Persistent Homology (PH) and the Wasserstein distance.
 
 #### Persistent Homology (PH)
-PH is a tool which models the "shape" of data—how discrete data points are embedded in a high-dimensional manifold in space—and allows for unsupervised clustering and structuring. In detail, PH studies emergent structures in the data and at what observational scale these structures exist. It does this by setting a ball of radius $r$ around each point in space, then varying the size of $r$. When these balls overlap, an edge is added between them. This forms a graph, where the data points are the vertices and the edges are a function of the size of the radius. If PH is taken further, there are additional degrees where it may be extended: if three points are fully connected, then they enclose a triangular "face", and if four points are fully connected, then they enclose a tetrahedronal volume. This space-filling volume may be taken to whatever extent desired, which is the study of simplicial complexes. For the purpose of this study, we stop at the two-dimensional faces, so consider only the edges and faces.
+
+PH is a tool which models the "shape" of data---how discrete data points are embedded in a high-dimensional manifold in space---and allows for unsupervised clustering and structuring. In detail, PH studies emergent structures in the data and at what observational scale these structures exist. It does this by setting a ball of radius $r$ around each point in space, then varying the size of $r$. When these balls overlap, an edge is added between them. This forms a graph, where the data points are the vertices and the edges are a function of the size of the radius. If PH is taken further, there are additional degrees where it may be extended: if three points are fully connected, then they enclose a triangular "face", and if four points are fully connected, then they enclose a tetrahedronal volume. This space-filling volume may be taken to whatever extent desired, which is the study of simplicial complexes. For the purpose of this study, we stop at the two-dimensional faces, so consider only the edges and faces.
 
 #### Wasserstein Distance
-The Wasserstein distance is a measure of optimal transport between two structures. It is commonly known as the "earth-mover's distance," as it measures the distance between two probability distributions via minimal shifting of this probability—hence the comparison to moving earth, where this distance is the amount of dirt which must be moved to make pile number (1) equivalent in shape to pile number (2). In a physics sense, this is a measure of work, and in a more purely mathematical sense, it functions as a topological derivative—the rate of change between topological states.
+
+The Wasserstein distance is a measure of optimal transport between two structures. It is commonly known as the "earth-mover's distance," as it measures the distance between two probability distributions via minimal shifting of this probability---hence the comparison to moving earth, where this distance is the amount of dirt which must be moved to make pile number (1) equivalent in shape to pile number (2). In a physics sense, this is a measure of work, and in a more purely mathematical sense, it functions as a topological derivative---the rate of change between topological states.
 
 We create a time series of this distance as we move a window of length $k$ along the data, creating PH structures for windows containing time steps 1:k, 2:(k+1), ..., n:(n+k-1). The overlap in these windows means that measuring the distance between consecutive structures is a measure of the difference in influence of the oldest (exiting) point and the newest (entering) point. If these points are identical, the PH structures are identical and the distance is zero. If they are strongly influential in different aspects, this distance is very large. It is our hypothesis that this distance will act as an edge detector between states, and in particular, the entry or exit from a recessionary economic state.
 
@@ -49,7 +52,7 @@ ROC compares the false positives and true positives of a binary classifier. For 
 
 The AUC is the area under the ROC. It measures the overall quality of the signal from this model on a scale from 0 to 1; we can interpret this as the probability that this model will assign a higher Wasserstein distance to a recessionary window than to a non-recessionary window. This should be within the interval (0.5, 1), because if it is worse than random, we would simply invert the signal. This metric is less sensitive to the potential to "get lucky" with careful selection of the threshold $\tau$ than many alternatives, because it considers all thresholds and the power of the model over all variations of this parameter. Further, as a metric derived from ROC, the AUC is invariant on the partition of the data between classes, and so will not be artificially inflated by an imbalance between them in the training data.
 
-# Data and Pre-Processing
+## Data and Processing
 
 Our data is retrieved from Yahoo Finance (via the "tidyquant" R package) and from FRED (also via the "tidyquant" R package). This data includes time series for the daily close of major stock indices (S&P 500, DOW, NASDAQ, Russel 2000), common hedges for uncertainty (gold, silver, Case-Schiller Index for real estate), and monthly data on macroeconomic data (U3 and U6 unemployment, GDP, CPI, Federal Funds Rate, Housing Starts, ...) (A full data appendix is found in the [*clean_data.R*]{.underline} script). Additionally, API sourcing is used to collect two measures of consumer sentiment around recessions; google search trend data for "recession" and wikipedia page visits for "recession", to better obtain a sort of "panic" measure that may be useful in predicting recessions. Collectively, these present a multi-faceted image of the economy at a point in time -- in particular, they represent both classical macroeconomic indicators and aggregating signals for the "shadow economy" of asset prices and volatility hedges. Further, the vast majority of our data begins well before 2000, with some stretching back to the beginning of the 20th century, a visualization attached below will demonstrate that. Recession data is manually collected into a dataframe for easy joining with the larger dataset, the data is from the NBER. Lagged indicators for if a recession starts in the next 6, 12 and 18 months are created from this data and will serve as our target predicted variable in terms of forecasting recessions.
 
@@ -63,13 +66,17 @@ From this, we do some further processing, to create a relative-scaled first-diff
 
 Finally, we append some functions of our variables onto that dataset to allow for a more robust approach when using persistent homology. In particular, we use log-returns for our asset data and other compounding indices, which tend to exhibit exponential growth and would thus distort the spacial "shape" of the data we intend to exploit in such a manner as to dominate any further processes, despite its failure as a dominant indicator of recessions.
 
-In terms of missing data, as is addressed in the visualizations section of this report, the only missingness of concern is the lack of duration that some features have data for. Aside from that, missing values are of little concern at this stage, keeping in mind our temporal restrictions.
+In terms of missing data, the only missingness of concern is the lack of duration that some features have data for. Aside from that, missing values are of little concern at this stage, keeping in mind our temporal restrictions. For a better demonstration of the ranges of our variables of interest, observe the following chart.
 
-To ensure the robustness and validity of the data, an analysis of outliers is also carried out on the data, using the *dlookr* package in R. Using this tool, we discovered that while there are extreme values, they are naturally occurring, as most can be explained by looking at the historical period in which they lay. This analysis also shed light to the variability of some of our variables, with certain ones being composed of \~35% outlier observations. These outliers form the basis for the detection of recessions, with the idea that recessions will generally be associated with economic extremum.
+```{r, echo=FALSE, out.width="110%", fig.align="center", fig.cap="All of the plots are included in the MacroVars_EDA.R script"}
+knitr::include_graphics("../output/visualizations/data_coverage_timeline.png")
+```
+
+To ensure the robustness and validity of the data, an analysis of outliers is also carried out on the data, using the *dlookr* package in R. Using this tool, we discovered that while there are extreme values, they are naturally occurring, as most can be explained by looking at the historical period in which they lay. This analysis also shed light to the variability of some of our variables, with certain ones being composed of \~35% outlier observations. With all that said, we will keep these extreme values, as not only are they "real observations", but also are vital for the shocks that we are looking for in our Persistent homology approach.
 
 These steps were carried out in the direction of the "**data cleaning checklist**", which is applied completely in the "clean_data.R" script, though due to the formalized and clean nature of the data we bring in, the data is quite "clean" already.
 
-## Analysis of Macroeconomic Data
+### Analysis of Macroeconomic Data
 
 Prior to processing our data into topological structures, to predict recessions it is important to know if we have ground to stand on in the first place. In that, we need to determine if these variables, and their relationships meaningfully differ when the economy is in a recession, or near one.
 
@@ -93,39 +100,111 @@ We also examine how the two variables vary together through time by looking at a
 
 We also conduct an analysis of extreme values for these two variables and find notable outliers for both, but since both are true, factual data, which can be explained by events at the time, they are retained. Their retention is also necessary when considering our topological approach, as the Wasserstein distances will be driven by large shocks that an outlier causes. This extreme value analysis was then expanded to every variable, and as touched on in the first section of this report, no outliers will be excluded from analysis, as they are all "real" datum, and drive our Wasserstein TDA approach.
 
-## Visualizations
+### Analysis of Topological Data
 
-This plot illustrates what periods we do have data for, and where it is missing. Most of the data is present and once the data series starts, it is almost perfectly complete, with some sparse missing values around 2025 due to the government shutdown.
+As is outlined in the introduction, our analysis will be examining the "distance" between topological structures from one time window to the next using Wasserstein distances (which are calculated for each dimension of topological structure in a given window). These distances will be the variables that will be used to predict if a month is near an upcoming recession or not. A more thorough description of our process is found in the methodology section.
 
-### Data Coverage /Missing Values
+With that said, due to unequal data coverage, computational limitations, and lessons from other similar empirical approaches, we don't and cannot use our full data in our TDA approach (Gidea & Katz, 2018; Ismail et al. 2022). Instead, we select multiple groupings of variables that combine both a good amount of data availability (the data availability for a group will only be as good as its "most missing" member variable), and theoretical relevance to recessions. These included groupings of "monetary movers" (unemployment, inflation, fed funds), "widespread panic" (Google recession trends, S&P500 volatility, U6 unemployment), "real economy" (consumer sentiment, industrial production, u3 unemployment, housing starts), and others, which are all analyzed equally in the WassDist_DEA.R script.
 
-```{r data-coverage, fig.cap="Data Coverage and Missingness Map"}
-knitr::include_graphics("../output/visualizations/data_coverage_timeline.png")
+To gain a fundamental understanding of the structure of the relationships between the variables, a function wass created that plots either 2 or 3 variable overlapping temporal windows of 12 months as time progresses, with coloring to indicate if the economy is approaching a recession or is in one. For a 2d example, consider the following subsection of our "real economy" collection of variables discussed earlier.
+
+::: {style="display: flex; align-items: center;"}
+::: {style="width: 80%;"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE,fig.cap="Press the play button or drag the slider to see the point cloud change over time"}
+library(plotly)
+library(dplyr)
+
+my_interactive_plot = readRDS("../output/interactive_plotly_plots/real_economy_2d.rds")
+
+my_interactive_plot %>% 
+  layout(
+    xaxis = list(range = c(-3, 3)),
+    yaxis = list(range = c(-3, 3)),
+    margin = list(r = 0) # Kills the right margin so it sits flush with the key
+  )
+```
+:::
+
+::: {style="width: 40%; padding-left: 10px;"}
+```{r, echo=FALSE}
+knitr::include_graphics("../output/visualizations/key.jpg")
+```
+:::
+:::
+
+Most of these 2d plots had the same findings, in that it is difficult to say that structural divergence happens more frequently in the lead up to recessions. For some specifications, the structure of the data seemed to change leading to a recession, but it is difficult to know if that is just random divergence. Three dimensional plots were employed alongside the 2d plots, testing for the same structural divergence in anticipation of a recession. For an example, we can model all of our "monetary mover" variables over time.
+
+::: {style="display: flex; align-items: center;"}
+::: {style="width: 80%;"}
+```{r, echo=FALSE, message=FALSE, warning=FALSE,fig.cap="Press the play button or drag the slider to see the point cloud change over time"}
+library(plotly)
+library(dplyr)
+
+my_interactive_plot = readRDS("../output/interactive_plotly_plots/monetary_3d.rds")
+
+my_interactive_plot
+```
+:::
+
+::: {style="width: 40%; padding-left: 10px;"}
+```{r, echo=FALSE}
+knitr::include_graphics("../output/visualizations/key.jpg")
+```
+:::
+:::
+
+It is worth noting that the mesh covering the dots is not indicative of any sort of exact topological structure that will be uncovered when using persistent homology, and serves more as a visual aid.
+
+Again, we don't find any sort of silver bullet here indicating that our approach may work. With that said, persistent homology may be better able to capture relationships within data, relationships that the human eye isn't keen to detect given a 3d graph, even with the mesh applied over the variables.
+
+Following the point cloud maps, a different methodology is tried to get a foundational grasp as to the promise of the Wasserstein-distance TDA approach. Here, we calculate the wasserstein distance for a set window size, and plot it against recessions. Here is an example from the subset of variables that were observed prior to the great depression. Again, these are wasserstein distances, a measure of "how hard" it would be to reconstruct one topological structure from another (this is an imprecise definition). Here the window size is 18 months.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%", fig.height=5, fig.cap="Narrow the window and drag the slider to see the change through time."}
+library(dygraphs)
+library(xts)
+library(dplyr)
+
+source("../scripts/PH_functions.R")
+
+wass_data = read.csv("../data/clean/pre_depression_wasses.csv") %>%
+  select(-X) %>%
+  mutate(window2_end = as.Date(window2_end))
+
+full_data = read.csv("../data/clean/transformed_cleaned_data.csv") %>%
+  mutate(date = as.Date(date))
+
+plot_distances(
+  dist_data = wass_data,
+  full_data = full_data,
+  dimensions = c("dim0"),
+  subtitle = "0th dimension Wasserstein"
+)
+plot_distances(
+  dist_data = wass_data,
+  full_data = full_data,
+  dimensions = c("dim1", "dim2"),
+  subtitle = "1st and 2nd dimension Wasserstein"
+)
 ```
 
-This graph illustrates the general completeness of our data, and once the time series starts, it is generally complete -- barring the month or two of missing data at the end of 2025, due to the aforementioned government shutdown.
+For each of the groupings of variables, plots like this were assembled. The results from these plots are more uplifting than the point clouds, but still need to be approached with caution, for example, when looking at the bottom plot, showing the 1st dimension Wasserstein over time note how there are some spikes that occur quite close to recessions (1948, 1953, 1990, etc.) but it is difficult to argue that these aren't just well-placed noise-that is what our prediction methods will attempt to tease out.
 
-### 3-D Tracking of points through space
+With this in mind, after weighing the predictive power evident in this type of time series plot, in conjunction with data availability constraints, we choose 3 specifications to focus our predictive analysis on.
 
-These plots show the path through time the US economy has followed, where color illustrates the time variable, on several three-axis subsets of our data. In particular, we can see that there are some patterns and regions that this path seems to end up in -- our goal is to identify some repeating area where recessions occur, and use that pattern or spacial region to predict future recessions.
+Namely, we choose the following (where all variables are differenced and scaled, as outlined in the *alter_data.R* script.
 
-```{r}
+-   **The pre-depression variables**
 
-```
+    -   Gold price, Industrial Production, S&P 500 Average Close, S&P 500 Volatility
 
-### Time series for most variables
+-   **The "real economy" variables**
 
-Here, we can see how several variable change through time, as well as visualizing when the series starts. This plot allows us to get a better idea of the trends of some of our variables of interest, in order to better inform our understanding of the topological objects created through persistent homology.
+    -   Consumer Sentiment, Industrial Production, U3 Unemployment, Housing Starts
 
-```         
-```
+-   **The "monetary movers" variables**
 
-### Distributions for Variables of Interest
+    -   U3 Unemployment, Inflation, Federal Funds Rate
 
-These plots show the distribution of several variables.
-
-```         
-```
 # Results
 
 As is outlined in the introduction, our analysis examines the distance between topological structures from one time window to the next using the Wasserstein metric (which are calculated for each dimension of topological structure in a given window). These distances will be the variables that will be used to predict if a month is near an upcoming recession or not. A more thorough description of our process is found in the methodology section.
@@ -142,31 +221,29 @@ results_spec_real_econ = read.csv("../data/clean/spec_real_econ_results_raw.csv"
 results_spec_monetary_movers = read.csv("../data/clean/spec_monetary_movers_results_raw.csv")
 ```
 
-In particular, we use the zero-th, first, and second dimensional Wasserstein metrics, with their pairwise interactions, as predictor variables in a logit and in a lasso regression.  These models are trained on the pre-2000 data, and AUC metrics are reported for in the test data after 2000.
+In particular, we use the zero-th, first, and second dimensional Wasserstein metrics, with their pairwise interactions, as predictor variables in a logit and in a lasso regression. These models are trained on the pre-2000 data, and AUC metrics are reported for in the test data after 2000.
 
 The results for the monetary movers specification are below.
+
 ```{r}
 format_results_table(results_spec_monetary_movers, "Monetary Movers Specification Performance")
 ```
-The first column describes the goal prediction metric: whether there will be a recession in the next 6, 12, or 18 months.  The second and third columns provide the specification for how the Wasserstein metric was computed -- whether the windows were overlapping, and how long the windows were.  To clarify, if the windows overlap, then we may see consecutive windows as months 1-12 and 2-13, and if not, they might look like 1-12 and 13-24.  Following this, we have the out-of-sample lasso and logit model AUC values, and some model specifications: the $\lambda$ value for the lasso regression and the features which were not compressed to zero in the lasso regression.  These features indicate the Wasserstein metric values at zero dimensions (connectivity), one dimension (holes), and two dimensions (voids), and the interactions of these time series.  
 
-It is of particular note that very few of these specifications exceed 0.5 in the AUC computation.  This, as touched on in the introduction, indicates that they perform worse-than-random on the out-of-sample data.  There are a couple values which do exceed 0.5, the largest of which is 0.595 for an 18 month overlapping window, attempting to predict a recession 6 months out using a lasso regression.  Extending this window length to 36 months also produces an AUC greater than 0.5, but at 0.565, less than that of the 18 month window.  
+The first column describes the goal prediction metric: whether there will be a recession in the next 6, 12, or 18 months. The second and third columns provide the specification for how the Wasserstein metric was computed -- whether the windows were overlapping, and how long the windows were. To clarify, if the windows overlap, then we may see consecutive windows as months 1-12 and 2-13, and if not, they might look like 1-12 and 13-24. Following this, we have the out-of-sample lasso and logit model AUC values, and some model specifications: the $\lambda$ value for the lasso regression and the features which were not compressed to zero in the lasso regression. These features indicate the Wasserstein metric values at zero dimensions (connectivity), one dimension (holes), and two dimensions (voids), and the interactions of these time series.
+
+It is of particular note that very few of these specifications exceed 0.5 in the AUC computation. This, as touched on in the introduction, indicates that they perform worse-than-random on the out-of-sample data. There are a couple values which do exceed 0.5, the largest of which is 0.595 for an 18 month overlapping window, attempting to predict a recession 6 months out using a lasso regression. Extending this window length to 36 months also produces an AUC greater than 0.5, but at 0.565, less than that of the 18 month window.
 
 Similar tables for the pre-depression and real economy specifications are below.
+
 ```{r}
 format_results_table(results_spec_pre_dep, "Pre-Depression Specification Performance")
 format_results_table(results_spec_real_econ, "Real Economy Specification Performance")
 ```
-Much as in the monetary movers specification, there are several values in each of these below 0.5, so performing worse-than-random.  However, there are far fewer of these, relative to the number of estimates, and there are several more extreme AUC values, approaching one.  In particular, the 8 month non-overlapping windows generated an AUC of about 0.8 when predicting recessions 12 months out with the real economy specification for the model.
 
-As a broad category, the real economy seems to be the most reliable, with (by inspection) the largest proportion of models with better-than-random performance in the test set.  This seems reasonable, since a recession is defined based on GDP, which most closely fits in this "real economy" category, so the structure and manifold on which these parameters move is more relevant.  This real economy specification also seems to have the least number of models substantially under 0.5, again supporting this hypothesis of it performing the best.
+Much as in the monetary movers specification, there are several values in each of these below 0.5, so performing worse-than-random. However, there are far fewer of these, relative to the number of estimates, and there are several more extreme AUC values, approaching one. In particular, the 8 month non-overlapping windows generated an AUC of about 0.8 when predicting recessions 12 months out with the real economy specification for the model.
 
-It is also worth noting which variables were most persistent in the models, that is, which variables were least commonly removed by the lasso regression. D0 and D1 were the most common of these (by inspection) followed by interactions with and between these as well as D2.  This suggests that the second dimension, looking for voids is least important, while connectivity and holes are relatively more important.  This, if we attempt to interpret it, likely suggests that a cyclical economy or two distinct behaviors of the economy is either (1) more important of an observation than persistant voids, or (2) we lacked sufficient data to identify persistant voids -- this could have either been longer histories (where we would then be lacking enough folds for robust cross validation) or data with a greater time-density.
+As a broad category, the real economy seems to be the most reliable, with (by inspection) the largest proportion of models with better-than-random performance in the test set. This seems reasonable, since a recession is defined based on GDP, which most closely fits in this "real economy" category, so the structure and manifold on which these parameters move is more relevant. This real economy specification also seems to have the least number of models substantially under 0.5, again supporting this hypothesis of it performing the best.
+
+It is also worth noting which variables were most persistent in the models, that is, which variables were least commonly removed by the lasso regression. D0 and D1 were the most common of these (by inspection) followed by interactions with and between these as well as D2. This suggests that the second dimension, looking for voids is least important, while connectivity and holes are relatively more important. This, if we attempt to interpret it, likely suggests that a cyclical economy or two distinct behaviors of the economy is either (1) more important of an observation than persistant voids, or (2) we lacked sufficient data to identify persistant voids -- this could have either been longer histories (where we would then be lacking enough folds for robust cross validation) or data with a greater time-density.
 
 # Conclusion
-
-
-
-
-
-
